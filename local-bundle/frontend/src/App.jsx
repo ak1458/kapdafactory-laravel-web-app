@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 import OrderList from './pages/OrderList';
 import CreateOrder from './pages/CreateOrder';
 import OrderDetail from './pages/OrderDetail';
+import EditOrder from './pages/EditOrder';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -57,6 +58,14 @@ function AppRoutes() {
         <RequireAuth>
           <Layout>
             <OrderDetail />
+          </Layout>
+        </RequireAuth>
+      } />
+
+      <Route path="/orders/:id/edit" element={
+        <RequireAuth>
+          <Layout>
+            <EditOrder />
           </Layout>
         </RequireAuth>
       } />

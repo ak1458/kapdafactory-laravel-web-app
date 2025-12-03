@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Calendar, Package, ChevronRight, Clock } from 'lucide-react';
+import { Calendar, Package, ChevronRight, Clock, Trash2 } from 'lucide-react';
+import api from '../lib/api';
 import clsx from 'clsx';
 
 export default function OrderCard({ order }) {
@@ -38,7 +39,7 @@ export default function OrderCard({ order }) {
                 <div className="w-16 h-16 bg-slate-50 rounded-xl flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner relative group-hover:ring-2 ring-indigo-50 transition-all">
                     {order.images && order.images.length > 0 ? (
                         <img
-                            src={`${import.meta.env.VITE_API_URL || '/api'}/storage/${order.images[0].filename}`}
+                            src={`${import.meta.env.VITE_API_URL || ''}/storage/${order.images[0].filename}`}
                             alt="Order"
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             onError={(e) => e.target.style.display = 'none'}
@@ -69,6 +70,19 @@ export default function OrderCard({ order }) {
                     </div>
                 </div>
 
+                <button
+                    onClick={(e) => {
+                        e.preventDefault();
+                        if (window.confirm('Delete this order?')) {
+                            api.delete(`/orders/${order.id}`).then(() => {
+                                window.location.reload();
+                            });
+                        }
+                    }}
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors z-10 relative"
+                >
+                    <Trash2 size={18} />
+                </button>
                 <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
             </div>
         </Link>

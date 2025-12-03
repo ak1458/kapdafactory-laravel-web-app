@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
-import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText } from 'lucide-react';
+import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText, Edit } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function OrderDetail() {
@@ -46,14 +46,32 @@ export default function OrderDetail() {
             {/* Header */}
             <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-50">
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
                     <img src="/logo.png" alt="KapdaFactory" className="h-10 w-auto object-contain" />
                 </div>
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-2 -mr-2 text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                    <ChevronLeft size={24} />
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => navigate(`/orders/${id}/edit`)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                    >
+                        <Edit size={20} />
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (confirm('Delete order?')) {
+                                api.delete(`/orders/${id}`).then(() => navigate('/dashboard'));
+                            }
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                </div>
             </header>
 
             <main className="px-6 py-6 space-y-6">
