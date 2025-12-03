@@ -1,0 +1,12 @@
+node_modules/
+vendor/
+.env
+.DS_Store
+dist/
+build/
+deploy-package/
+deploy-package.zip
+*.log
+storage/*.key
+.idea/
+.vscode/
