@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('customer_name', 150)->nullable();
             $table->json('measurements'); // Stores chest, waist, etc.
             $table->date('delivery_date')->nullable();
-            $table->enum('status', ['pending', 'ready', 'delivered'])->default('pending');
+            $table->enum('status', ['pending', 'ready', 'delivered', 'transferred'])->default('pending');
             $table->text('remarks')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->timestamps();

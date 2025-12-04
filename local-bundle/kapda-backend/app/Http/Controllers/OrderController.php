@@ -15,11 +15,11 @@ class OrderController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('token', 'like', "%{$search}%")
-                  ->orWhere('bill_number', 'like', "%{$search}%")
-                  ->orWhere('customer_name', 'like', "%{$search}%")
-                  ->orWhereDate('delivery_date', $search);
+                    ->orWhere('bill_number', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhereDate('delivery_date', $search);
             });
         }
 
@@ -35,7 +35,20 @@ class OrderController extends Controller
             $query->whereDate('delivery_date', '<=', $request->date_to);
         }
 
-        return $query->latest()->paginate(20);
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = $request->input('sort_order', 'desc');
+
+        if ($sortBy === 'delivery_date') {
+            // Put null delivery dates last when sorting ASC, first when sorting DESC
+            // SQLite doesn't support 'IS NULL' in orderByRaw easily in the same way as MySQL for sorting position
+            // But standard orderBy usually puts nulls first or last.
+            // Let's just use standard orderBy for now.
+            $query->orderBy('delivery_date', $sortOrder);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        return $query->paginate(20);
     }
 
     public function store(Request $request)
@@ -49,9 +62,6 @@ class OrderController extends Controller
         ]);
 
         $status = 'pending';
-        if (!empty($validated['delivery_date']) && strtotime($validated['delivery_date']) < time()) {
-            $status = 'delivered';
-        }
 
         $order = Order::create([
             ...$validated,
@@ -71,9 +81,9 @@ class OrderController extends Controller
     public function update(Request $request, $id)
     {
         $order = Order::findOrFail($id);
-        
+
         $validated = $request->validate([
-            'bill_number' => 'nullable|unique:orders,bill_number,'.$id,
+            'bill_number' => 'nullable|unique:orders,bill_number,' . $id,
             'customer_name' => 'nullable|string',
             'delivery_date' => 'nullable|date',
             'remarks' => 'nullable|string',
@@ -86,7 +96,7 @@ class OrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending,ready,delivered',
+            'status' => 'required|in:pending,ready,delivered,transferred',
             'note' => 'nullable|string'
         ]);
 

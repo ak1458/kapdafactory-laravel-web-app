@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
-import { ChevronLeft, Trash2, CheckCircle, Truck, Clock } from 'lucide-react';
+import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText, Edit } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function OrderDetail() {
@@ -42,126 +42,193 @@ export default function OrderDetail() {
     if (!order) return <div className="p-4 text-center">Order not found</div>;
 
     return (
-        <div className="pb-20">
-            <div className="flex items-center mb-4">
-                <button onClick={() => navigate(-1)} className="mr-2 p-1">
-                    <ChevronLeft />
-                </button>
-                <h2 className="text-xl font-bold">Order #{order.token}</h2>
-            </div>
+        <div className="pb-24 bg-gray-50 min-h-screen font-sans">
+            {/* Header */}
+            <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-50">
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
+                    <img src="/logo.png" alt="KapdaFactory" className="h-10 w-auto object-contain" />
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => navigate(`/orders/${id}/edit`)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                    >
+                        <Edit size={20} />
+                    </button>
+                    <button
+                        onClick={() => {
+                            if (confirm('Delete order?')) {
+                                api.delete(`/orders/${id}`).then(() => navigate('/dashboard'));
+                            }
+                        }}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    >
+                        <Trash2 size={20} />
+                    </button>
+                </div>
+            </header>
 
-            <div className="bg-white rounded-lg shadow-sm p-4 mb-4 border">
-                <div className="grid grid-cols-2 gap-4 mb-4">
+            <main className="px-6 py-6 space-y-6">
+                {/* Title & Status */}
+                <div className="flex justify-between items-start">
                     <div>
-                        <span className="text-xs text-gray-500 block">Customer</span>
-                        <span className="font-medium">{order.customer_name || '-'}</span>
+                        <h1 className="text-2xl font-bold text-gray-900">
+                            Order #{order?.token}
+                        </h1>
+                        <p className="text-sm text-gray-500 font-medium mt-1">
+                            {order?.created_at ? new Date(order.created_at).toLocaleDateString() : 'No Date'}
+                        </p>
                     </div>
-                    <div>
-                        <span className="text-xs text-gray-500 block">Bill No</span>
-                        <span className="font-medium">{order.bill_number || '-'}</span>
+                    <span className={clsx(
+                        "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border",
+                        order?.status === 'pending' && "bg-amber-50 text-amber-600 border-amber-100",
+                        order?.status === 'ready' && "bg-blue-50 text-blue-600 border-blue-100",
+                        order?.status === 'delivered' && "bg-green-50 text-green-600 border-green-100"
+                    )}>
+                        {order?.status}
+                    </span>
+                </div>
+
+                {/* Customer Info Card */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                            <User size={20} />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</p>
+                            <p className="font-semibold text-gray-900">{order?.customer_name || 'Walk-in Customer'}</p>
+                        </div>
                     </div>
-                    <div>
-                        <span className="text-xs text-gray-500 block">Delivery</span>
-                        <span className="font-medium">{order.delivery_date || '-'}</span>
-                    </div>
-                    <div>
-                        <span className="text-xs text-gray-500 block">Status</span>
-                        <span className="capitalize font-medium">{order.status}</span>
+
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                            <Calendar size={20} />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Delivery Date</p>
+                            <p className="font-semibold text-gray-900">{order?.delivery_date || 'Not Set'}</p>
+                        </div>
                     </div>
                 </div>
 
-                <div className="mb-4">
-                    <span className="text-xs text-gray-500 block mb-1">Measurements</span>
-                    <div className="grid grid-cols-3 gap-2 text-sm bg-gray-50 p-2 rounded">
-                        {Object.entries(order.measurements || {}).map(([key, val]) => (
-                            val && <div key={key}><span className="capitalize text-gray-500">{key}:</span> {val}</div>
+
+
+                {/* Images Section */}
+                {order?.images?.length > 0 && (
+                    <div>
+                        <h3 className="text-sm font-bold text-gray-900 mb-3 ml-1">Photos</h3>
+                        <div className="grid grid-cols-3 gap-3">
+                            {order.images.map((img) => (
+                                <div key={img.id} className="relative aspect-square bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group">
+                                    <img
+                                        src={`/storage/${img.filename}`}
+                                        alt="Order"
+                                        className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            if (confirm('Delete image?')) deleteImageMutation.mutate(img.id);
+                                        }}
+                                        className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Remarks */}
+                {order?.remarks && (
+                    <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
+                        <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                            <FileText size={14} /> Remarks
+                        </h3>
+                        <p className="text-sm text-amber-900 leading-relaxed">{order.remarks}</p>
+                    </div>
+                )}
+
+                {/* Status Actions */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="text-sm font-bold text-gray-900 mb-4">Update Status</h3>
+                    <input
+                        type="text"
+                        placeholder="Add a note (optional)..."
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal-500/20 mb-4 transition-all"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                        <button
+                            onClick={() => statusMutation.mutate('pending')}
+                            className={clsx(
+                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
+                                order?.status === 'pending'
+                                    ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-500/20 shadow-sm'
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            )}
+                        >
+                            <Clock size={18} /> Pending
+                        </button>
+                        <button
+                            onClick={() => statusMutation.mutate('ready')}
+                            className={clsx(
+                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
+                                order?.status === 'ready'
+                                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500/20 shadow-sm'
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            )}
+                        >
+                            <CheckCircle size={18} /> Ready
+                        </button>
+                        <button
+                            onClick={() => statusMutation.mutate('delivered')}
+                            className={clsx(
+                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
+                                order?.status === 'delivered'
+                                    ? 'bg-green-100 text-green-700 ring-2 ring-green-500/20 shadow-sm'
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            )}
+                        >
+                            <Truck size={18} /> Delivered
+                        </button>
+                    </div>
+                </div>
+
+                {/* History Log */}
+                <div className="pt-4">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 ml-1">History</h3>
+                    <div className="space-y-6 relative pl-4 border-l-2 border-gray-100 ml-2">
+                        {order?.logs?.map((log) => (
+                            <div key={log.id} className="relative">
+                                <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-gray-200 border-2 border-white shadow-sm"></div>
+                                <div className="flex justify-between items-start">
+                                    <span className="text-sm font-bold text-gray-700 capitalize">
+                                        {log.action.replace('status_changed:', '').replace('_', ' ')}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
+                                        {new Date(log.created_at).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">Updated by {log.user?.name || 'Admin'}</div>
+                                {log.note && (
+                                    <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg italic border border-gray-100">
+                                        "{log.note}"
+                                    </div>
+                                )}
+                            </div>
                         ))}
                     </div>
                 </div>
-
-                {order.remarks && (
-                    <div className="mb-4">
-                        <span className="text-xs text-gray-500 block">Remarks</span>
-                        <p className="text-sm">{order.remarks}</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Images */}
-            <div className="mb-6">
-                <h3 className="font-medium mb-2">Images</h3>
-                <div className="grid grid-cols-3 gap-2">
-                    {order.images?.map((img) => (
-                        <div key={img.id} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                            <img
-                                src={`${import.meta.env.VITE_API_URL || '/api'}/storage/${img.filename}`}
-                                alt="Order"
-                                className="w-full h-full object-cover"
-                            />
-                            <button
-                                onClick={() => {
-                                    if (confirm('Delete image?')) deleteImageMutation.mutate(img.id);
-                                }}
-                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-                            >
-                                <Trash2 size={12} />
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Status Actions */}
-            <div className="bg-white rounded-lg shadow-sm p-4 border mb-6">
-                <h3 className="font-medium mb-3">Update Status</h3>
-                <input
-                    type="text"
-                    placeholder="Add a note (optional)"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    className="w-full border rounded p-2 text-sm mb-3"
-                />
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => statusMutation.mutate('pending')}
-                        disabled={order.status === 'pending'}
-                        className={clsx("flex-1 py-2 rounded text-sm flex justify-center items-center gap-1", order.status === 'pending' ? 'bg-gray-100 text-gray-400' : 'bg-yellow-100 text-yellow-800')}
-                    >
-                        <Clock size={16} /> Pending
-                    </button>
-                    <button
-                        onClick={() => statusMutation.mutate('ready')}
-                        disabled={order.status === 'ready'}
-                        className={clsx("flex-1 py-2 rounded text-sm flex justify-center items-center gap-1", order.status === 'ready' ? 'bg-gray-100 text-gray-400' : 'bg-blue-100 text-blue-800')}
-                    >
-                        <CheckCircle size={16} /> Ready
-                    </button>
-                    <button
-                        onClick={() => statusMutation.mutate('delivered')}
-                        disabled={order.status === 'delivered'}
-                        className={clsx("flex-1 py-2 rounded text-sm flex justify-center items-center gap-1", order.status === 'delivered' ? 'bg-gray-100 text-gray-400' : 'bg-green-100 text-green-800')}
-                    >
-                        <Truck size={16} /> Delivered
-                    </button>
-                </div>
-            </div>
-
-            {/* Logs */}
-            <div>
-                <h3 className="font-medium mb-2 text-sm text-gray-500">History</h3>
-                <div className="space-y-3">
-                    {order.logs?.map((log) => (
-                        <div key={log.id} className="text-sm border-l-2 border-gray-200 pl-3">
-                            <div className="flex justify-between">
-                                <span className="font-medium">{log.action}</span>
-                                <span className="text-xs text-gray-400">{new Date(log.created_at).toLocaleString()}</span>
-                            </div>
-                            <div className="text-xs text-gray-500">by {log.user?.name}</div>
-                            {log.note && <div className="text-xs text-gray-600 mt-1 italic">"{log.note}"</div>}
-                        </div>
-                    ))}
-                </div>
-            </div>
+            </main>
         </div>
     );
 }

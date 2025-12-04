@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
-import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText, Edit } from 'lucide-react';
+import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText, Edit, X, ArrowRightCircle } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function OrderDetail() {
@@ -10,6 +10,7 @@ export default function OrderDetail() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [note, setNote] = useState('');
+    const [selectedImage, setSelectedImage] = useState(null);
 
     const { data: order, isLoading } = useQuery({
         queryKey: ['order', id],
@@ -26,6 +27,10 @@ export default function OrderDetail() {
         onSuccess: () => {
             queryClient.invalidateQueries(['order', id]);
             setNote('');
+        },
+        onError: (error) => {
+            console.error(error);
+            alert('Failed to update status: ' + (error.response?.data?.message || error.message));
         }
     });
 
@@ -42,13 +47,13 @@ export default function OrderDetail() {
     if (!order) return <div className="p-4 text-center">Order not found</div>;
 
     return (
-        <div className="pb-24 bg-gray-50 min-h-screen font-sans">
+        <div className="pb-24 bg-whatsapp-bg min-h-screen font-sans">
             {/* Header */}
-            <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-50">
+            <header className="bg-[#075E54] px-4 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => navigate(-1)}
-                        className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-2 -ml-2 text-white hover:bg-white/10 rounded-full transition-colors"
                     >
                         <ChevronLeft size={24} />
                     </button>
@@ -57,7 +62,7 @@ export default function OrderDetail() {
                 <div className="flex gap-2">
                     <button
                         onClick={() => navigate(`/orders/${id}/edit`)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                        className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
                     >
                         <Edit size={20} />
                     </button>
@@ -67,7 +72,7 @@ export default function OrderDetail() {
                                 api.delete(`/orders/${id}`).then(() => navigate('/dashboard'));
                             }
                         }}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                        className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
                     >
                         <Trash2 size={20} />
                     </button>
@@ -89,7 +94,8 @@ export default function OrderDetail() {
                         "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border",
                         order?.status === 'pending' && "bg-amber-50 text-amber-600 border-amber-100",
                         order?.status === 'ready' && "bg-blue-50 text-blue-600 border-blue-100",
-                        order?.status === 'delivered' && "bg-green-50 text-green-600 border-green-100"
+                        order?.status === 'delivered' && "bg-green-50 text-green-600 border-green-100",
+                        order?.status === 'transferred' && "bg-purple-50 text-purple-600 border-purple-100"
                     )}>
                         {order?.status}
                     </span>
@@ -98,7 +104,7 @@ export default function OrderDetail() {
                 {/* Customer Info Card */}
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600">
+                        <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-[#075E54]">
                             <User size={20} />
                         </div>
                         <div>
@@ -113,7 +119,9 @@ export default function OrderDetail() {
                         </div>
                         <div>
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Delivery Date</p>
-                            <p className="font-semibold text-gray-900">{order?.delivery_date || 'Not Set'}</p>
+                            <p className="font-semibold text-gray-900">
+                                {order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not Set'}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -128,12 +136,15 @@ export default function OrderDetail() {
                             {order.images.map((img) => (
                                 <div key={img.id} className="relative aspect-square bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group">
                                     <img
-                                        src={`/storage/${img.filename}`}
+                                        src={img.filename.startsWith('http') ? img.filename : `/storage/${img.filename}`}
                                         alt="Order"
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover cursor-pointer"
+                                        onClick={() => setSelectedImage(img)}
+                                        onError={(e) => e.target.style.display = 'none'}
                                     />
                                     <button
-                                        onClick={() => {
+                                        onClick={(e) => {
+                                            e.stopPropagation();
                                             if (confirm('Delete image?')) deleteImageMutation.mutate(img.id);
                                         }}
                                         className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
@@ -146,13 +157,36 @@ export default function OrderDetail() {
                     </div>
                 )}
 
+                {/* Image Zoom Modal */}
+                {/* Image Zoom Modal */}
+                {selectedImage && (
+                    <div
+                        className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => setSelectedImage(null)}
+                    >
+                        <button
+                            onClick={() => setSelectedImage(null)}
+                            className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all"
+                        >
+                            <X size={24} />
+                        </button>
+                        <img
+                            src={selectedImage.filename.startsWith('http') ? selectedImage.filename : `/storage/${selectedImage.filename}`}
+                            alt="Full view"
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl scale-100 transition-transform duration-200"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                )}
+
                 {/* Remarks */}
                 {order?.remarks && (
-                    <div className="bg-amber-50 rounded-2xl p-5 border border-amber-100">
-                        <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <div className="bg-whatsapp-light rounded-tr-none rounded-2xl p-4 shadow-sm border border-green-100 ml-auto max-w-[85%] relative">
+                        <div className="absolute top-0 -right-2 w-4 h-4 bg-whatsapp-light [clip-path:polygon(0_0,100%_0,0_100%)]"></div>
+                        <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-1 flex items-center gap-2">
                             <FileText size={14} /> Remarks
                         </h3>
-                        <p className="text-sm text-amber-900 leading-relaxed">{order.remarks}</p>
+                        <p className="text-sm text-gray-800 leading-relaxed">{order.remarks}</p>
                     </div>
                 )}
 
@@ -166,7 +200,7 @@ export default function OrderDetail() {
                         onChange={(e) => setNote(e.target.value)}
                         className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal-500/20 mb-4 transition-all"
                     />
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                         <button
                             onClick={() => statusMutation.mutate('pending')}
                             className={clsx(
@@ -199,6 +233,17 @@ export default function OrderDetail() {
                             )}
                         >
                             <Truck size={18} /> Delivered
+                        </button>
+                        <button
+                            onClick={() => statusMutation.mutate('transferred')}
+                            className={clsx(
+                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
+                                order?.status === 'transferred'
+                                    ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500/20 shadow-sm'
+                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                            )}
+                        >
+                            <ArrowRightCircle size={18} /> Transferred
                         </button>
                     </div>
                 </div>

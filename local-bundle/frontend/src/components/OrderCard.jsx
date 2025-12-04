@@ -8,6 +8,7 @@ export default function OrderCard({ order }) {
         pending: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-100', dot: 'bg-amber-500' },
         ready: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-100', dot: 'bg-indigo-500' },
         delivered: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-100', dot: 'bg-emerald-500' },
+        transferred: { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-100', dot: 'bg-purple-500' },
     };
 
     const status = statusConfig[order?.status] || statusConfig.pending;
@@ -39,7 +40,7 @@ export default function OrderCard({ order }) {
                 <div className="w-16 h-16 bg-slate-50 rounded-xl flex-shrink-0 overflow-hidden border border-slate-100 shadow-inner relative group-hover:ring-2 ring-indigo-50 transition-all">
                     {order.images && order.images.length > 0 ? (
                         <img
-                            src={`${import.meta.env.VITE_API_URL || ''}/storage/${order.images[0].filename}`}
+                            src={order.images[0].filename.startsWith('http') ? order.images[0].filename : `/storage/${order.images[0].filename}`}
                             alt="Order"
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                             onError={(e) => e.target.style.display = 'none'}

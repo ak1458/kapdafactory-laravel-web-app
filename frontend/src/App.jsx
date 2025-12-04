@@ -1,45 +1,75 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './pages/Login';
 import Layout from './components/Layout';
 import OrderList from './pages/OrderList';
 import CreateOrder from './pages/CreateOrder';
 import OrderDetail from './pages/OrderDetail';
+import EditOrder from './pages/EditOrder';
+import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="p-4 text-center">Loading...</div>;
-  if (!user) return <Navigate to="/admin/login" />;
-  return <Layout>{children}</Layout>;
+function RequireAuth({ children }) {
+  const { token } = useAuth();
+  const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/admin/login" element={<Login />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+
       <Route path="/" element={
-        <ProtectedRoute>
-          <CreateOrder />
-        </ProtectedRoute>
+        <RequireAuth>
+          <Layout>
+            <CreateOrder />
+          </Layout>
+        </RequireAuth>
       } />
+
       <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <OrderList />
-        </ProtectedRoute>
+        <RequireAuth>
+          <Layout>
+            <OrderList />
+          </Layout>
+        </RequireAuth>
       } />
+
       <Route path="/orders/create" element={
-        <ProtectedRoute>
-          <CreateOrder />
-        </ProtectedRoute>
+        <RequireAuth>
+          <Layout>
+            <CreateOrder />
+          </Layout>
+        </RequireAuth>
       } />
+
       <Route path="/orders/:id" element={
-        <ProtectedRoute>
-          <OrderDetail />
-        </ProtectedRoute>
+        <RequireAuth>
+          <Layout>
+            <OrderDetail />
+          </Layout>
+        </RequireAuth>
       } />
+
+      <Route path="/orders/:id/edit" element={
+        <RequireAuth>
+          <Layout>
+            <EditOrder />
+          </Layout>
+        </RequireAuth>
+      } />
+
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

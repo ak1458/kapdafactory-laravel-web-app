@@ -12,11 +12,17 @@ export default function OrderList() {
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState('all');
     const [dateFilter, setDateFilter] = useState('');
+    const [sortOrder, setSortOrder] = useState('desc');
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['orders', search, status, dateFilter],
+        queryKey: ['orders', search, status, dateFilter, sortOrder],
         queryFn: async () => {
-            const params = { search, status };
+            const params = {
+                search,
+                status,
+                sort_by: 'delivery_date',
+                sort_order: sortOrder
+            };
             if (dateFilter) {
                 params.date_from = dateFilter;
                 params.date_to = dateFilter;
@@ -30,19 +36,19 @@ export default function OrderList() {
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans">
             {/* Header */}
-            <header className="bg-white px-6 py-4 flex justify-between items-center shadow-sm sticky top-0 z-50">
+            <header className="bg-[#075E54] px-4 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
                 <div className="flex items-center gap-2">
                     <img src="/logo.png" alt="KapdaFactory" className="h-12 w-auto object-contain" />
                 </div>
                 <button
                     onClick={() => navigate('/login')}
-                    className="bg-red-50 text-red-500 px-4 py-1.5 rounded-full text-sm font-medium hover:bg-red-100 transition-colors"
+                    className="bg-white/20 text-white px-4 py-1.5 rounded-full text-sm font-bold hover:bg-white/30 transition-colors border border-white/10"
                 >
                     Logout
                 </button>
             </header>
 
-            <div className="sticky top-[80px] z-40 bg-gray-50 pt-4 pb-2 px-6 transition-all space-y-3">
+            <div className="sticky top-[70px] z-40 bg-whatsapp-bg pt-2 pb-2 px-4 transition-all space-y-3">
                 <SearchBar onSearch={setSearch} />
                 <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -62,6 +68,13 @@ export default function OrderList() {
                             Clear
                         </button>
                     )}
+                    <button
+                        onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                        className="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-colors flex items-center gap-2"
+                    >
+                        <Calendar size={14} />
+                        {sortOrder === 'desc' ? 'Latest Delivery' : 'Earliest Delivery'}
+                    </button>
                 </div>
                 <FilterChips status={status} onChange={setStatus} />
             </div>
@@ -105,7 +118,9 @@ export default function OrderList() {
                     ).sort(([dateA], [dateB]) => {
                         if (dateA === 'No Date') return 1;
                         if (dateB === 'No Date') return -1;
-                        return new Date(dateB) - new Date(dateA); // Newest first
+                        const dateObjA = new Date(dateA);
+                        const dateObjB = new Date(dateB);
+                        return sortOrder === 'desc' ? dateObjB - dateObjA : dateObjA - dateObjB;
                     }).map(([date, orders]) => {
                         const stats = orders.reduce((acc, order) => {
                             acc[order.status] = (acc[order.status] || 0) + 1;
@@ -114,15 +129,18 @@ export default function OrderList() {
 
                         return (
                             <div key={date}>
-                                <div className="flex items-center justify-between mb-3 sticky top-[150px] bg-gray-50/95 backdrop-blur-sm py-2 z-30">
-                                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                        <Calendar size={14} />
-                                        {date === 'No Date' ? 'No Date' : new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                    </h3>
-                                    <div className="flex gap-2 text-[10px] font-bold">
-                                        {stats.pending && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{stats.pending} P</span>}
-                                        {stats.ready && <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{stats.ready} R</span>}
-                                        {stats.delivered && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{stats.delivered} D</span>}
+                                <div className="flex items-center justify-center mb-3 sticky top-[140px] z-30 pointer-events-none">
+                                    <div className="bg-white/80 backdrop-blur-sm px-3 py-1 rounded-lg shadow-sm border border-gray-100 flex items-center gap-2">
+                                        <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                                            <Calendar size={12} />
+                                            {date === 'No Date' ? 'No Date' : new Date(date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                        </h3>
+                                        <div className="flex gap-1 text-[10px] font-bold border-l border-gray-300 pl-2">
+                                            {stats.pending && <span className="text-amber-600">{stats.pending}P</span>}
+                                            {stats.ready && <span className="text-blue-600">{stats.ready}R</span>}
+                                            {stats.delivered && <span className="text-green-600">{stats.delivered}D</span>}
+                                            {stats.transferred && <span className="text-purple-600">{stats.transferred}T</span>}
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">

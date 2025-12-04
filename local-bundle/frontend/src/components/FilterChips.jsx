@@ -6,6 +6,7 @@ export default function FilterChips({ status, onChange }) {
         { value: 'pending', label: 'Pending' },
         { value: 'ready', label: 'Ready' },
         { value: 'delivered', label: 'Delivered' },
+        { value: 'transferred', label: 'Transferred' },
     ];
 
     return (

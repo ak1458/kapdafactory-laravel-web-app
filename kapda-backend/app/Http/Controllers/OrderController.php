@@ -34,7 +34,7 @@ class OrderController extends Controller
             $query->whereDate('delivery_date', '<=', $request->date_to);
         }
 
-        return $query->latest()->paginate(20);
+        return $query->orderBy('delivery_date', 'desc')->latest()->paginate(20);
     }
 
     public function store(Request $request)
