@@ -1,25 +1,27 @@
 import clsx from 'clsx';
 
-export default function FilterChips({ status, onChange }) {
-    const options = [
-        { value: 'all', label: 'All Orders' },
-        { value: 'pending', label: 'Pending' },
-        { value: 'ready', label: 'Ready' },
-        { value: 'delivered', label: 'Delivered' },
-        { value: 'transferred', label: 'Transferred' },
-    ];
+export default function FilterChips({ status, onChange, options }) {
+    const getColor = (value) => {
+        switch (value) {
+            case 'pending': return 'bg-amber-500 border-amber-600 text-white shadow-amber-200';
+            case 'ready': return 'bg-blue-500 border-blue-600 text-white shadow-blue-200';
+            case 'delivered': return 'bg-green-500 border-green-600 text-white shadow-green-200';
+            case 'transferred': return 'bg-purple-500 border-purple-600 text-white shadow-purple-200';
+            default: return 'bg-slate-900 border-slate-900 text-white shadow-slate-200';
+        }
+    };
 
     return (
-        <div className="flex gap-3 overflow-x-auto pb-4 mb-2 no-scrollbar px-1">
+        <div className="flex gap-2 overflow-x-auto py-2 no-scrollbar px-1">
             {options.map((opt) => (
                 <button
                     key={opt.value}
                     onClick={() => onChange(opt.value)}
                     className={clsx(
-                        'px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border',
+                        'px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 border shadow-sm',
                         status === opt.value
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md shadow-slate-200 transform scale-105'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                            ? `${getColor(opt.value)} transform scale-105 shadow-md`
+                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                     )}
                 >
                     {opt.label}

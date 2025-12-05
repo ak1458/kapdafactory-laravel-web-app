@@ -1,55 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/api';
-import { ChevronLeft, Trash2, CheckCircle, Truck, Clock, User, Receipt, Calendar, FileText, Edit, X, ArrowRightCircle } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, User, Calendar, CheckCircle, X, Clock, Scissors, Truck, ArrowRightLeft } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function OrderDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const queryClient = useQueryClient();
-    const [note, setNote] = useState('');
+    const [order, setOrder] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
+    const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+    const [paymentAmount, setPaymentAmount] = useState('');
 
-    const { data: order, isLoading } = useQuery({
-        queryKey: ['order', id],
-        queryFn: async () => {
+    const fetchOrder = async () => {
+        try {
             const res = await api.get(`/orders/${id}`);
-            return res.data;
+            setOrder(res.data);
+            setLoading(false);
+        } catch (err) {
+            setError('Failed to load order');
+            setLoading(false);
         }
-    });
+    };
 
-    const statusMutation = useMutation({
-        mutationFn: async (newStatus) => {
-            await api.put(`/orders/${id}/status`, { status: newStatus, note });
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['order', id]);
-            setNote('');
-        },
-        onError: (error) => {
-            console.error(error);
-            alert('Failed to update status: ' + (error.response?.data?.message || error.message));
+    useEffect(() => {
+        fetchOrder();
+    }, [id]);
+
+    const updateStatus = async (newStatus) => {
+        try {
+            await api.put(`/orders/${id}/status`, {
+                status: newStatus,
+                payment_amount: newStatus === 'delivered' ? paymentAmount : 0
+            });
+            setShowDeliveryModal(false);
+            setPaymentAmount('');
+            fetchOrder();
+        } catch (err) {
+            alert('Failed to update status');
         }
-    });
+    };
 
-    const deleteImageMutation = useMutation({
-        mutationFn: async (imageId) => {
+    const deleteImage = async (imageId) => {
+        if (!confirm('Delete this image?')) return;
+        try {
             await api.delete(`/orders/${id}/images/${imageId}`);
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['order', id]);
+            fetchOrder();
+        } catch (err) {
+            alert('Failed to delete image');
         }
-    });
+    };
 
-    if (isLoading) return <div className="p-4 text-center">Loading...</div>;
-    if (!order) return <div className="p-4 text-center">Order not found</div>;
+    if (loading) return <div className="flex justify-center items-center h-screen text-[#075E54] font-bold">Loading...</div>;
+    if (error) return <div className="text-center text-red-500 mt-10 font-bold">{error}</div>;
 
     return (
-        <div className="pb-24 bg-whatsapp-bg min-h-screen font-sans">
+        <div className="min-h-screen bg-[#ECE5DD] pb-10 font-sans">
             {/* Header */}
-            <header className="bg-[#075E54] px-4 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
+            <header className="bg-gradient-to-r from-[#25D366] to-[#128C7E] px-4 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => navigate(-1)}
@@ -57,7 +67,7 @@ export default function OrderDetail() {
                     >
                         <ChevronLeft size={24} />
                     </button>
-                    <img src="/logo.png" alt="KapdaFactory" className="h-10 w-auto object-contain" />
+                    <h1 className="text-lg font-bold text-white">Order Details</h1>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -79,7 +89,7 @@ export default function OrderDetail() {
                 </div>
             </header>
 
-            <main className="px-6 py-6 space-y-6">
+            <main className="px-4 py-4 space-y-4">
                 {/* Title & Status */}
                 <div className="flex justify-between items-start">
                     <div>
@@ -102,9 +112,9 @@ export default function OrderDetail() {
                 </div>
 
                 {/* Customer Info Card */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-3">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-[#075E54]">
+                        <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-[#128C7E]">
                             <User size={20} />
                         </div>
                         <div>
@@ -126,15 +136,52 @@ export default function OrderDetail() {
                     </div>
                 </div>
 
+                {/* Payment Info */}
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Remaining Balance</span>
+                        <div className="text-right">
+                            <span className="text-xl font-bold text-red-500 block">₹{order?.balance || 0}</span>
+                        </div>
+                    </div>
+                </div>
 
+                {/* Payment History Table */}
+                {order?.payments?.length > 0 && (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment History</h3>
+                        </div>
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
+                                <tr>
+                                    <th className="px-4 py-2 font-medium">Date</th>
+                                    <th className="px-4 py-2 font-medium">Amount</th>
+                                    <th className="px-4 py-2 font-medium">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {order.payments.map((payment) => (
+                                    <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
+                                        <td className="px-4 py-2 text-gray-600">
+                                            {new Date(payment.payment_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                        </td>
+                                        <td className="px-4 py-2 font-bold text-green-600">₹{payment.amount}</td>
+                                        <td className="px-4 py-2 text-gray-500 text-xs">{payment.note || '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
-                {/* Images Section */}
+                {/* Images Grid */}
                 {order?.images?.length > 0 && (
                     <div>
-                        <h3 className="text-sm font-bold text-gray-900 mb-3 ml-1">Photos</h3>
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Measurements / Photos</h3>
                         <div className="grid grid-cols-3 gap-3">
                             {order.images.map((img) => (
-                                <div key={img.id} className="relative aspect-square bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group">
+                                <div key={img.id} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group">
                                     <img
                                         src={img.filename.startsWith('http') ? img.filename : `/storage/${img.filename}`}
                                         alt="Order"
@@ -145,7 +192,7 @@ export default function OrderDetail() {
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            if (confirm('Delete image?')) deleteImageMutation.mutate(img.id);
+                                            deleteImage(img.id);
                                         }}
                                         className="absolute top-2 right-2 bg-white/90 text-red-500 p-1.5 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
@@ -157,123 +204,209 @@ export default function OrderDetail() {
                     </div>
                 )}
 
-                {/* Image Zoom Modal */}
-                {/* Image Zoom Modal */}
-                {selectedImage && (
-                    <div
-                        className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => setSelectedImage(null)}
-                    >
-                        <button
-                            onClick={() => setSelectedImage(null)}
-                            className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all"
-                        >
-                            <X size={24} />
-                        </button>
-                        <img
-                            src={selectedImage.filename.startsWith('http') ? selectedImage.filename : `/storage/${selectedImage.filename}`}
-                            alt="Full view"
-                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl scale-100 transition-transform duration-200"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    </div>
-                )}
-
                 {/* Remarks */}
-                {order?.remarks && (
-                    <div className="bg-whatsapp-light rounded-tr-none rounded-2xl p-4 shadow-sm border border-green-100 ml-auto max-w-[85%] relative">
-                        <div className="absolute top-0 -right-2 w-4 h-4 bg-whatsapp-light [clip-path:polygon(0_0,100%_0,0_100%)]"></div>
-                        <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-1 flex items-center gap-2">
-                            <FileText size={14} /> Remarks
+                <div className="bg-[#DCF8C6]/30 rounded-xl p-4 border border-[#DCF8C6]">
+                    <p className="text-xs font-bold text-green-800 uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <Edit size={12} /> Remarks
+                    </p>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                        {order?.remarks || 'No remarks provided.'}
+                    </p>
+                </div>
+
+                {/* Status Actions - Glossy & Iconic */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Update Status</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        <button
+                            onClick={() => updateStatus('pending')}
+                            className={clsx(
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                order?.status === 'pending'
+                                    ? "bg-gradient-to-br from-amber-400 to-orange-500 border-transparent text-white shadow-lg shadow-orange-500/30 scale-[1.02]"
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-amber-200 hover:bg-amber-50/50 hover:shadow-md"
+                            )}
+                        >
+                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'pending' ? "bg-white/20" : "bg-amber-100 text-amber-600")}>
+                                <Clock size={20} />
+                            </div>
+                            <span className="font-bold text-sm">Pending</span>
+                        </button>
+
+                        <button
+                            onClick={() => updateStatus('ready')}
+                            className={clsx(
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                order?.status === 'ready'
+                                    ? "bg-gradient-to-br from-blue-400 to-blue-600 border-transparent text-white shadow-lg shadow-blue-500/30 scale-[1.02]"
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-md"
+                            )}
+                        >
+                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'ready' ? "bg-white/20" : "bg-blue-100 text-blue-600")}>
+                                <Scissors size={20} />
+                            </div>
+                            <span className="font-bold text-sm">Ready</span>
+                        </button>
+
+                        <button
+                            onClick={() => setShowDeliveryModal(true)}
+                            className={clsx(
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                order?.status === 'delivered'
+                                    ? "bg-gradient-to-br from-[#25D366] to-[#128C7E] border-transparent text-white shadow-lg shadow-green-500/30 scale-[1.02]"
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-green-200 hover:bg-green-50/50 hover:shadow-md"
+                            )}
+                        >
+                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'delivered' ? "bg-white/20" : "bg-green-100 text-green-600")}>
+                                <Truck size={20} />
+                            </div>
+                            <span className="font-bold text-sm">Delivered</span>
+                        </button>
+
+                        <button
+                            onClick={() => updateStatus('transferred')}
+                            className={clsx(
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                order?.status === 'transferred'
+                                    ? "bg-gradient-to-br from-purple-400 to-purple-600 border-transparent text-white shadow-lg shadow-purple-500/30 scale-[1.02]"
+                                    : "bg-white border-gray-100 text-gray-500 hover:border-purple-200 hover:bg-purple-50/50 hover:shadow-md"
+                            )}
+                        >
+                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'transferred' ? "bg-white/20" : "bg-purple-100 text-purple-600")}>
+                                <ArrowRightLeft size={20} />
+                            </div>
+                            <span className="font-bold text-sm">Transferred</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* Status Timeline */}
+                {order?.logs && order.logs.length > 0 && (
+                    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                            <Clock size={14} />
+                            Status Timeline
                         </h3>
-                        <p className="text-sm text-gray-800 leading-relaxed">{order.remarks}</p>
+                        <div className="space-y-3">
+                            {order.logs
+                                .filter(log => log.action.startsWith('status_changed:'))
+                                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                .map((log, index) => {
+                                    const status = log.action.replace('status_changed:', '');
+                                    const statusConfig = {
+                                        pending: { color: 'amber', icon: Clock, label: 'Pending' },
+                                        ready: { color: 'blue', icon: Scissors, label: 'Ready' },
+                                        delivered: { color: 'green', icon: Truck, label: 'Delivered' },
+                                        transferred: { color: 'purple', icon: ArrowRightLeft, label: 'Transferred' }
+                                    };
+                                    const config = statusConfig[status] || { color: 'gray', icon: Clock, label: status };
+                                    const Icon = config.icon;
+
+                                    return (
+                                        <div key={log.id} className="flex items-start gap-3 relative">
+                                            {index < order.logs.filter(l => l.action.startsWith('status_changed:')).length - 1 && (
+                                                <div className="absolute left-[15px] top-8 bottom-0 w-0.5 bg-gray-200" />
+                                            )}
+                                            <div className={`flex-none w-8 h-8 rounded-full bg-${config.color}-100 flex items-center justify-center relative z-10`}>
+                                                <Icon size={16} className={`text-${config.color}-600`} />
+                                            </div>
+                                            <div className="flex-1 pt-0.5">
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`font-bold text-sm text-${config.color}-600`}>
+                                                        {config.label}
+                                                    </span>
+                                                    <span className="text-xs text-gray-400">
+                                                        {new Date(log.created_at).toLocaleString('en-IN', {
+                                                            day: 'numeric',
+                                                            month: 'short',
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                {log.note && (
+                                                    <p className="text-xs text-gray-500 mt-1">{log.note}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                        </div>
                     </div>
                 )}
-
-                {/* Status Actions */}
-                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                    <h3 className="text-sm font-bold text-gray-900 mb-4">Update Status</h3>
-                    <input
-                        type="text"
-                        placeholder="Add a note (optional)..."
-                        value={note}
-                        onChange={(e) => setNote(e.target.value)}
-                        className="w-full bg-gray-50 border-0 rounded-xl px-4 py-3 text-sm font-medium text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal-500/20 mb-4 transition-all"
-                    />
-                    <div className="grid grid-cols-4 gap-2">
-                        <button
-                            onClick={() => statusMutation.mutate('pending')}
-                            className={clsx(
-                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
-                                order?.status === 'pending'
-                                    ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-500/20 shadow-sm'
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            )}
-                        >
-                            <Clock size={18} /> Pending
-                        </button>
-                        <button
-                            onClick={() => statusMutation.mutate('ready')}
-                            className={clsx(
-                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
-                                order?.status === 'ready'
-                                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-500/20 shadow-sm'
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            )}
-                        >
-                            <CheckCircle size={18} /> Ready
-                        </button>
-                        <button
-                            onClick={() => statusMutation.mutate('delivered')}
-                            className={clsx(
-                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
-                                order?.status === 'delivered'
-                                    ? 'bg-green-100 text-green-700 ring-2 ring-green-500/20 shadow-sm'
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            )}
-                        >
-                            <Truck size={18} /> Delivered
-                        </button>
-                        <button
-                            onClick={() => statusMutation.mutate('transferred')}
-                            className={clsx(
-                                "py-3 rounded-xl text-xs font-bold flex flex-col items-center gap-1 transition-all active:scale-95",
-                                order?.status === 'transferred'
-                                    ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-500/20 shadow-sm'
-                                    : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-                            )}
-                        >
-                            <ArrowRightCircle size={18} /> Transferred
-                        </button>
-                    </div>
-                </div>
-
-                {/* History Log */}
-                <div className="pt-4">
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 ml-1">History</h3>
-                    <div className="space-y-6 relative pl-4 border-l-2 border-gray-100 ml-2">
-                        {order?.logs?.map((log) => (
-                            <div key={log.id} className="relative">
-                                <div className="absolute -left-[21px] top-0 w-3 h-3 rounded-full bg-gray-200 border-2 border-white shadow-sm"></div>
-                                <div className="flex justify-between items-start">
-                                    <span className="text-sm font-bold text-gray-700 capitalize">
-                                        {log.action.replace('status_changed:', '').replace('_', ' ')}
-                                    </span>
-                                    <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
-                                        {new Date(log.created_at).toLocaleDateString()}
-                                    </span>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-0.5">Updated by {log.user?.name || 'Admin'}</div>
-                                {log.note && (
-                                    <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded-lg italic border border-gray-100">
-                                        "{log.note}"
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </main>
+
+            {/* Delivery Payment Modal */}
+            {showDeliveryModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden scale-100 animate-in zoom-in-95 duration-200">
+                        <div className="bg-[#075E54] p-4 text-white text-center">
+                            <h3 className="text-lg font-bold">Collect Payment</h3>
+                            <p className="text-xs opacity-80">Enter amount customer is paying now</p>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="bg-red-50 p-3 rounded-xl text-center border border-red-100">
+                                <p className="text-xs font-bold text-red-400 uppercase tracking-wider">Due Amount</p>
+                                <p className="text-2xl font-bold text-red-600">₹{order?.balance || 0}</p>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Payment Now</label>
+                                <input
+                                    type="number"
+                                    value={paymentAmount}
+                                    onChange={(e) => setPaymentAmount(e.target.value)}
+                                    className="w-full text-center text-2xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-green-500 focus:outline-none py-2"
+                                    placeholder="0"
+                                    autoFocus
+                                />
+                                <div className="flex justify-between text-xs font-medium px-1 pt-1">
+                                    <span className="text-gray-500">New Balance: <span className={clsx("font-bold", (order?.balance - (parseFloat(paymentAmount) || 0)) > 0 ? "text-red-500" : "text-green-600")}>
+                                        ₹{Math.max(0, (order?.balance || 0) - (parseFloat(paymentAmount) || 0))}
+                                    </span></span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button
+                                    onClick={() => setShowDeliveryModal(false)}
+                                    className="py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => updateStatus('delivered')}
+                                    className="py-3 rounded-xl font-bold bg-[#25D366] text-white shadow-lg shadow-green-500/30 active:scale-[0.98] transition-all"
+                                >
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Image Zoom Modal */}
+            {selectedImage && (
+                <div
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setSelectedImage(null)}
+                >
+                    <button
+                        onClick={() => setSelectedImage(null)}
+                        className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all"
+                    >
+                        <X size={24} />
+                    </button>
+                    <img
+                        src={selectedImage.filename.startsWith('http') ? selectedImage.filename : `/storage/${selectedImage.filename}`}
+                        alt="Full view"
+                        className="max-w-full max-h-full object-contain rounded-lg shadow-2xl scale-100 transition-transform duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
         </div>
     );
 }
