@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, TrendingUp } from 'lucide-react';
 
 export default function BottomNav() {
     const navigate = useNavigate();
@@ -12,8 +12,8 @@ export default function BottomNav() {
             <button
                 onClick={() => navigate('/')}
                 className={`flex flex-col items-center gap-1 transition-colors ${isActive('/') || isActive('/orders/create')
-                        ? 'text-teal-600'
-                        : 'text-gray-400 hover:text-gray-600'
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
                     }`}
             >
                 <PlusCircle size={24} strokeWidth={isActive('/') ? 2.5 : 2} />
@@ -23,12 +23,23 @@ export default function BottomNav() {
             <button
                 onClick={() => navigate('/dashboard')}
                 className={`flex flex-col items-center gap-1 transition-colors ${isActive('/dashboard')
-                        ? 'text-teal-600'
-                        : 'text-gray-400 hover:text-gray-600'
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
                     }`}
             >
                 <Search size={24} strokeWidth={isActive('/dashboard') ? 2.5 : 2} />
                 <span className="text-[10px] font-bold uppercase tracking-wide">Search</span>
+            </button>
+
+            <button
+                onClick={() => navigate('/collections')}
+                className={`flex flex-col items-center gap-1 transition-colors ${isActive('/collections')
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                    }`}
+            >
+                <TrendingUp size={24} strokeWidth={isActive('/collections') ? 2.5 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">Collections</span>
             </button>
         </div>
     );

@@ -164,20 +164,28 @@ class OrderController extends Controller
         $request->validate([
             'status' => 'required|in:pending,ready,delivered,transferred',
             'note' => 'nullable|string',
-            'payment_amount' => 'nullable|numeric|min:0'
+            'payment_amount' => 'nullable|numeric|min:0',
+            'actual_delivery_date' => 'nullable|date'
         ]);
 
         $order = Order::findOrFail($id);
         $oldStatus = $order->status;
         $order->status = $request->status;
+
+        // Set actual delivery date when marking as delivered
+        if ($request->status === 'delivered' && $request->actual_delivery_date) {
+            $order->actual_delivery_date = $request->actual_delivery_date;
+        }
+
         $order->save();
 
         // Handle Payment
         $paymentNote = '';
         if ($request->payment_amount > 0) {
+            $paymentDate = $request->actual_delivery_date ?? now();
             $order->payments()->create([
                 'amount' => $request->payment_amount,
-                'payment_date' => now(),
+                'payment_date' => $paymentDate,
                 'note' => 'Delivery Payment'
             ]);
             $order->refresh(); // Update balance
@@ -227,6 +235,49 @@ class OrderController extends Controller
         $order->refresh();
 
         return response()->json($order->load('payments'));
+    }
+
+    public function dailyCollections(Request $request)
+    {
+        $query = Order::with(['payments'])
+            ->whereNotNull('actual_delivery_date')
+            ->where('status', 'delivered');
+
+        // Filter by date range if provided
+        if ($request->has('date_from')) {
+            $query->whereDate('actual_delivery_date', '>=', $request->date_from);
+        }
+        if ($request->has('date_to')) {
+            $query->whereDate('actual_delivery_date', '<=', $request->date_to);
+        }
+
+        $orders = $query->orderBy('actual_delivery_date', 'desc')->get();
+
+        // Group by actual delivery date
+        $collections = $orders->groupBy(function ($order) {
+            return $order->actual_delivery_date->format('Y-m-d');
+        })->map(function ($dayOrders, $date) {
+            // Calculate total collected on this date (sum of paid amounts)
+            $totalCollected = $dayOrders->sum('paid_amount');
+
+            return [
+                'date' => $date,
+                'total_collected' => $totalCollected,
+                'orders_count' => $dayOrders->count(),
+                'orders' => $dayOrders->map(function ($order) {
+                    return [
+                        'id' => $order->id,
+                        'token' => $order->token,
+                        'customer_name' => $order->customer_name,
+                        'total_amount' => $order->total_amount,
+                        'paid_amount' => $order->paid_amount,
+                        'balance' => $order->balance
+                    ];
+                })
+            ];
+        })->values();
+
+        return response()->json($collections);
     }
 
     public function destroy($id)

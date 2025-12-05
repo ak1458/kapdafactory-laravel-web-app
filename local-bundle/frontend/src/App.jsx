@@ -9,6 +9,7 @@ import EditOrder from './pages/EditOrder';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import DailyCollections from './pages/DailyCollections';
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,14 @@ function AppRoutes() {
         <RequireAuth>
           <Layout>
             <EditOrder />
+          </Layout>
+        </RequireAuth>
+      } />
+
+      <Route path="/collections" element={
+        <RequireAuth>
+          <Layout>
+            <DailyCollections />
           </Layout>
         </RequireAuth>
       } />

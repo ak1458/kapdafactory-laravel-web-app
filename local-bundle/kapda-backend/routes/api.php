@@ -24,6 +24,7 @@ Route::put('/orders/{id}', [OrderController::class, 'update']);
 Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
 Route::put('/orders/{id}/status', [OrderController::class, 'updateStatus']);
 Route::post('/orders/{id}/payments', [OrderController::class, 'addPayment']);
+Route::get('/daily-collections', [OrderController::class, 'dailyCollections']);
 
 // Images
 Route::post('/orders/{id}/images', [ImageController::class, 'store']);

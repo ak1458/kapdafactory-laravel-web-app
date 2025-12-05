@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
+import CustomDatePicker from '../components/CustomDatePicker';
 import { ChevronLeft, Edit, Trash2, User, Calendar, CheckCircle, X, Clock, Scissors, Truck, ArrowRightLeft } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -13,6 +14,7 @@ export default function OrderDetail() {
     const [selectedImage, setSelectedImage] = useState(null);
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
+    const [actualDeliveryDate, setActualDeliveryDate] = useState('');
 
     const fetchOrder = async () => {
         try {
@@ -33,10 +35,12 @@ export default function OrderDetail() {
         try {
             await api.put(`/orders/${id}/status`, {
                 status: newStatus,
-                payment_amount: newStatus === 'delivered' ? paymentAmount : 0
+                payment_amount: newStatus === 'delivered' ? paymentAmount : 0,
+                actual_delivery_date: newStatus === 'delivered' ? actualDeliveryDate : null
             });
             setShowDeliveryModal(false);
             setPaymentAmount('');
+            setActualDeliveryDate('');
             fetchOrder();
         } catch (err) {
             alert('Failed to update status');
@@ -352,6 +356,19 @@ export default function OrderDetail() {
                             </div>
 
                             <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Actual Delivery Date</label>
+                                <CustomDatePicker
+                                    selected={actualDeliveryDate}
+                                    onChange={(date) => setActualDeliveryDate(date)}
+                                    placeholder="When did customer pick up?"
+                                    className="text-sm font-bold text-gray-900"
+                                />
+                                <p className="text-xs text-gray-500 ml-1">
+                                    Planned: {order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString() : 'N/A'}
+                                </p>
+                            </div>
+
+                            <div className="space-y-2">
                                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Payment Now</label>
                                 <input
                                     type="number"
@@ -359,7 +376,6 @@ export default function OrderDetail() {
                                     onChange={(e) => setPaymentAmount(e.target.value)}
                                     className="w-full text-center text-2xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-green-500 focus:outline-none py-2"
                                     placeholder="0"
-                                    autoFocus
                                 />
                                 <div className="flex justify-between text-xs font-medium px-1 pt-1">
                                     <span className="text-gray-500">New Balance: <span className={clsx("font-bold", (order?.balance - (parseFloat(paymentAmount) || 0)) > 0 ? "text-red-500" : "text-green-600")}>

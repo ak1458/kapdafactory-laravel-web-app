@@ -15,6 +15,7 @@ class Order extends Model
         'customer_name',
         'measurements',
         'delivery_date',
+        'actual_delivery_date',
         'status',
         'remarks',
         'created_by',
@@ -24,6 +25,7 @@ class Order extends Model
     protected $casts = [
         'measurements' => 'array',
         'delivery_date' => 'date',
+        'actual_delivery_date' => 'date',
     ];
 
     protected $appends = ['paid_amount', 'balance'];
