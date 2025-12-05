@@ -17,6 +17,7 @@ export default function CreateOrder() {
     });
     const [images, setImages] = useState([]);
     const [previewUrls, setPreviewUrls] = useState([]);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     const handleImageChange = (e) => {
         const files = Array.from(e.target.files);
@@ -52,7 +53,23 @@ export default function CreateOrder() {
             const res = await api.post('/orders', data, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            navigate(`/orders/${res.data.id}`);
+
+            // Show success toast
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 2000);
+
+
+            // Reset form for next order
+            setFormData({
+                token: '',
+                customer_name: '',
+                delivery_date: '',
+                total_amount: '',
+                remarks: ''
+            });
+            setImages([]);
+            setPreviewUrls([]);
+
         } catch {
             alert('Failed to create order');
         } finally {
@@ -203,6 +220,14 @@ export default function CreateOrder() {
                     )}
                 </button>
             </main>
+
+            {/* Success Toast */}
+            {showSuccess && (
+                <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-[#25D366] text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top duration-200 z-50">
+                    <CheckCircle size={20} />
+                    <span className="font-bold">Order saved successfully!</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -33,10 +33,15 @@ export default function OrderDetail() {
 
     const updateStatus = async (newStatus) => {
         try {
+            // Use today's date as default if not selected
+            const deliveryDate = newStatus === 'delivered'
+                ? (actualDeliveryDate || new Date().toISOString().split('T')[0])
+                : null;
+
             await api.put(`/orders/${id}/status`, {
                 status: newStatus,
                 payment_amount: newStatus === 'delivered' ? paymentAmount : 0,
-                actual_delivery_date: newStatus === 'delivered' ? actualDeliveryDate : null
+                actual_delivery_date: deliveryDate
             });
             setShowDeliveryModal(false);
             setPaymentAmount('');
