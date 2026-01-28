@@ -1,0 +1,77 @@
+Array
+(
+    [DOCUMENT_ROOT] => /home/u816160039/domains/pulsekart.in
+    [REMOTE_ADDR] => 127.0.0.1
+    [REMOTE_PORT] => 42834
+    [SERVER_SOFTWARE] => PHP 8.2.28 Development Server
+    [SERVER_PROTOCOL] => HTTP/1.1
+    [SERVER_NAME] => 127.0.0.1
+    [SERVER_PORT] => 8081
+    [REQUEST_URI] => /api/login
+    [REQUEST_METHOD] => POST
+    [SCRIPT_NAME] => /api/index.php
+    [SCRIPT_FILENAME] => /home/u816160039/domains/pulsekart.in/public_html/api/index.php
+    [PHP_SELF] => /api/login
+    [HTTP_HOST] => 127.0.0.1:8081
+    [HTTP_USER_AGENT] => curl/7.76.1
+    [HTTP_ACCEPT] => */*
+    [CONTENT_TYPE] => application/json
+    [HTTP_CONTENT_TYPE] => application/json
+    [CONTENT_LENGTH] => 2
+    [HTTP_CONTENT_LENGTH] => 2
+    [REQUEST_TIME_FLOAT] => 1765772419.0553
+    [REQUEST_TIME] => 1765772419
+)
+Array
+(
+    [DOCUMENT_ROOT] => /home/u816160039/domains/pulsekart.in
+    [REMOTE_ADDR] => 127.0.0.1
+    [REMOTE_PORT] => 33348
+    [SERVER_SOFTWARE] => PHP 8.2.28 Development Server
+    [SERVER_PROTOCOL] => HTTP/1.1
+    [SERVER_NAME] => 127.0.0.1
+    [SERVER_PORT] => 8081
+    [REQUEST_URI] => /api/login
+    [REQUEST_METHOD] => POST
+    [SCRIPT_NAME] => /api/index.php
+    [SCRIPT_FILENAME] => /home/u816160039/domains/pulsekart.in/public_html/api/index.php
+    [PHP_SELF] => /api/login
+    [HTTP_HOST] => 127.0.0.1:8081
+    [HTTP_USER_AGENT] => curl/7.76.1
+    [HTTP_ACCEPT] => */*
+    [CONTENT_TYPE] => application/json
+    [HTTP_CONTENT_TYPE] => application/json
+    [CONTENT_LENGTH] => 2
+    [HTTP_CONTENT_LENGTH] => 2
+    [REQUEST_TIME_FLOAT] => 1765772461.3656
+    [REQUEST_TIME] => 1765772461
+)
+
+Resolved Path: login
+Method: POSTArray
+(
+    [DOCUMENT_ROOT] => /home/u816160039/domains/pulsekart.in
+    [REMOTE_ADDR] => 127.0.0.1
+    [REMOTE_PORT] => 19982
+    [SERVER_SOFTWARE] => PHP 8.2.28 Development Server
+    [SERVER_PROTOCOL] => HTTP/1.1
+    [SERVER_NAME] => 127.0.0.1
+    [SERVER_PORT] => 8081
+    [REQUEST_URI] => /api/login
+    [REQUEST_METHOD] => POST
+    [SCRIPT_NAME] => /api/index.php
+    [SCRIPT_FILENAME] => /home/u816160039/domains/pulsekart.in/public_html/api/index.php
+    [PHP_SELF] => /api/login
+    [HTTP_HOST] => 127.0.0.1:8081
+    [HTTP_USER_AGENT] => curl/7.76.1
+    [HTTP_ACCEPT] => */*
+    [CONTENT_TYPE] => application/json
+    [HTTP_CONTENT_TYPE] => application/json
+    [CONTENT_LENGTH] => 36
+    [HTTP_CONTENT_LENGTH] => 36
+    [REQUEST_TIME_FLOAT] => 1765772484.5663
+    [REQUEST_TIME] => 1765772484
+)
+
+Resolved Path: api/login
+Method: POST

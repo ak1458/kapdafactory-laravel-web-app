@@ -1,0 +1,32 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Serve assets from backend/public/assets
+    RewriteRule ^assets/(.*)$ backend/public/assets/$1 [L]
+    
+    # Serve static files
+    RewriteRule ^vite\.svg$ backend/public/vite.svg [L]
+    RewriteRule ^logo\.png$ backend/public/logo.png [L]
+    
+    # Storage symlink
+    RewriteRule ^storage/(.*)$ backend/storage/app/public/$1 [L]
+
+    # Redirect Trailing Slashes If Not A Folder
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Send all other requests to index.php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
