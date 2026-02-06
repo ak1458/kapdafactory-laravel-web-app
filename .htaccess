@@ -1,0 +1,27 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Handle Authorization Header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # 1. Storage Images
+    # Rewrite /storage/foo.jpg -> public/storage/foo.jpg
+    RewriteRule ^storage/(.*)$ public/storage/$1 [L]
+
+    # 2. Public Assets (if explicitly requested via /public/)
+    RewriteRule ^public/(.*)$ public/$1 [L]
+    
+    # 3. API Routes -> index.php
+    RewriteRule ^api/ index.php [L]
+
+    # 4. SPA Fallback
+    # If not a real file or directory, serve index.html (React)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.html [L]
+</IfModule>
