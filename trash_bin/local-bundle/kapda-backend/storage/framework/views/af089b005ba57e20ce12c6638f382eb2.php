@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KapdaFactory</title>
+    <script type="module" crossorigin src="/assets/index-XHwV8uGz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-4qaw-0F4.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
+<?php /**PATH D:\gravity\Kapdafactory new web app\local-bundle\kapda-backend\resources\views/app.blade.php ENDPATH**/ ?>

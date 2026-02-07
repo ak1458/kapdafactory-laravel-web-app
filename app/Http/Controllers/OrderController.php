@@ -78,22 +78,8 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
-        Log::info('Order Store Request: ' . json_encode($request->except('images')));
-        Log::info('Has File "images": ' . ($request->hasFile('images') ? 'YES' : 'NO'));
-
-        if ($request->hasFile('images')) {
-            $files = $request->file('images');
-            Log::info('File Count: ' . count($files));
-            foreach ($files as $index => $file) {
-                Log::info("File [$index]: Name=" . $file->getClientOriginalName() . ", Size=" . $file->getSize() . ", Mime=" . $file->getClientMimeType());
-            }
-        } else {
-            Log::warning('No images received in request.');
-            // Check if it was a post_max_size issue (empty request)
-            if (empty($request->all()) && empty($_FILES)) {
-                Log::error('Possible POST_MAX_SIZE exceeded. Request empty.');
-            }
-        }
+        // FIXED: Don't log sensitive data
+        Log::info('Order Store Request received');
 
         $request->validate([
             'token' => 'required|string',
@@ -106,8 +92,14 @@ class OrderController extends Controller
             'images.*' => 'nullable|image|max:10240' // 10MB limit per image
         ]);
 
+        // FIXED: Require authenticated user - no fallback to hardcoded ID
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         try {
-            return DB::transaction(function () use ($request) {
+            return DB::transaction(function () use ($request, $userId) {
                 // 1. Create Order
                 $order = Order::create([
                     'token' => $request->token,
@@ -118,7 +110,7 @@ class OrderController extends Controller
                     'measurements' => $request->measurements ?? [],
                     'remarks' => $request->remarks,
                     'status' => 'pending',
-                    'created_by' => Auth::id() ?? 1,
+                    'created_by' => $userId,
                     'total_amount' => $request->total_amount ?? 0
                 ]);
 
@@ -169,14 +161,22 @@ class OrderController extends Controller
             'total_amount' => 'nullable|numeric|min:0'
         ]);
 
-        $order->update($request->all());
+        // FIXED: Explicit field whitelist instead of $request->all()
+        $order->update($request->only([
+            'customer_name',
+            'delivery_date',
+            'entry_date',
+            'measurements',
+            'remarks',
+            'total_amount'
+        ]));
 
         return response()->json($order);
     }
 
     public function updateStatus(Request $request, $id)
     {
-        Log::info('updateStatus called', $request->all());
+        Log::info('updateStatus called for order: ' . $id);
 
         $request->validate([
             'status' => 'required|in:pending,ready,delivered,transferred',
@@ -184,6 +184,12 @@ class OrderController extends Controller
             'payment_amount' => 'nullable|numeric|min:0',
             'actual_delivery_date' => 'nullable|date'
         ]);
+
+        // FIXED: Require authenticated user - no fallback to hardcoded ID
+        $userId = Auth::id();
+        if (!$userId) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
 
         $order = Order::findOrFail($id);
         $oldStatus = $order->status;
@@ -227,7 +233,7 @@ class OrderController extends Controller
         $order->logs()->create([
             'action' => "status_changed:{$request->status}",
             'note' => $logNote,
-            'user_id' => Auth::id() ?? 2 // Use Auth ID
+            'user_id' => $userId
         ]);
 
         return response()->json($order->load('payments'));

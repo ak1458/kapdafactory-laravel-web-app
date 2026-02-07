@@ -31,8 +31,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Images
     Route::post('/orders/{id}/images', [ImageController::class, 'store']);
     Route::delete('/orders/{id}/images/{imageId}', [ImageController::class, 'destroy']);
-});
 
-// Export
-Route::get('/export/orders', [ExportController::class, 'exportOrders']);
-Route::get('/export/collections', [ExportController::class, 'exportCollections']);
+    // Export - FIXED: Now requires authentication
+    Route::get('/export/orders', [ExportController::class, 'exportOrders']);
+    Route::get('/export/collections', [ExportController::class, 'exportCollections']);
+});

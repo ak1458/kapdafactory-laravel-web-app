@@ -49,6 +49,7 @@ class ExportController extends Controller
             fputcsv($file, [
                 'Order ID',
                 'Token',
+                'Token Date',
                 'Entry Date',
                 'Customer Name',
                 'Delivery Date',
@@ -74,7 +75,8 @@ class ExportController extends Controller
                 fputcsv($file, [
                     $order->id,
                     $order->token,
-                    $order->entry_date ? date('d-m-Y', strtotime($order->entry_date)) : date('d-m-Y', strtotime($order->created_at)),
+                    date('d-m-Y', strtotime($order->created_at)),
+                    $order->entry_date ? date('d-m-Y', strtotime($order->entry_date)) : '',
                     $order->customer_name ?? 'N/A',
                     $order->delivery_date ? date('d-m-Y', strtotime($order->delivery_date)) : 'N/A',
                     ucfirst($order->status),
@@ -132,6 +134,8 @@ class ExportController extends Controller
             fputcsv($file, [
                 'Delivery Date',
                 'Token',
+                'Token Date',
+                'Entry Date',
                 'Customer Name',
                 'Total Amount',
                 'Cash',
@@ -152,6 +156,8 @@ class ExportController extends Controller
                 fputcsv($file, [
                     date('d-m-Y', strtotime($order->actual_delivery_date)),
                     $order->token,
+                    date('d-m-Y', strtotime($order->created_at)),
+                    $order->entry_date ? date('d-m-Y', strtotime($order->entry_date)) : '',
                     $order->customer_name ?? 'N/A',
                     $order->total_amount,
                     $cashTotal,
