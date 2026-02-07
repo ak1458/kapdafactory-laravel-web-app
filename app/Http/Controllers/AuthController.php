@@ -20,10 +20,11 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        Log::info('Login attempt', $credentials);
+        // FIXED: Only log email, never log passwords
+        Log::info('Login attempt for: ' . $credentials['email']);
 
         if (Auth::attempt($credentials)) {
-            Log::info('Login success');
+            Log::info('Login success for: ' . $credentials['email']);
             /** @var \App\Models\User $user */
             $user = Auth::user();
             $token = $user->createToken('auth_token')->plainTextToken;
@@ -35,7 +36,7 @@ class AuthController extends Controller
             ]);
         }
 
-        Log::error('Login failed for user: ' . $credentials['email']);
+        Log::warning('Login failed for user: ' . $credentials['email']);
         return response()->json(['message' => 'Invalid login details'], 401);
     }
 
@@ -51,21 +52,22 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
+        // FIXED: Generic message to prevent user enumeration
         if (!$user) {
-            // Return error if user not found (for this internal app, it's OK to show)
             return response()->json([
-                'success' => false,
-                'message' => 'No account found with this email address.'
-            ], 404);
+                'success' => true,
+                'message' => 'If an account exists with this email, a password reset link will be sent.',
+                'email_sent' => true
+            ]);
         }
 
         // Generate a secure token
         $token = Str::random(60);
 
-        // Store token in password_resets table
+        // FIXED: Hash the token before storing in database
         DB::table('password_resets')->updateOrInsert(
             ['email' => $request->email],
-            ['token' => $token, 'created_at' => now()]
+            ['token' => Hash::make($token), 'created_at' => now()]
         );
 
         // Generate reset link
@@ -86,36 +88,38 @@ class AuthController extends Controller
             Log::info("Password reset email sent to: {$user->email}");
         } catch (\Exception $e) {
             Log::warning("Failed to send password reset email: " . $e->getMessage());
-            // Email failed, but we'll show the link directly
         }
 
-        // Log the link for debugging
-        Log::info("Password Reset Link for {$request->email}: {$resetLink}");
+        // FIXED: Never expose reset link in API response - only log for debugging in dev
+        if (config('app.debug')) {
+            Log::debug("Password Reset Link for {$request->email}: {$resetLink}");
+        }
 
+        // FIXED: Generic response - don't reveal if email was actually sent
         return response()->json([
             'success' => true,
-            'message' => $emailSent
-                ? 'A password reset link has been sent to your email.'
-                : 'Email could not be sent. Use the link below to reset your password.',
-            'email_sent' => $emailSent,
-            'reset_link' => $resetLink  // Always include the link for display
+            'message' => 'If an account exists with this email, a password reset link will be sent.',
+            'email_sent' => true
         ]);
     }
 
     public function resetPassword(Request $request)
     {
+        // FIXED: Stronger password policy
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|min:6',
+            'password' => 'required|min:8|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/',
+        ], [
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, and one number.'
         ]);
 
         $record = DB::table('password_resets')
             ->where('email', $request->email)
-            ->where('token', $request->token)
             ->first();
 
-        if (!$record) {
+        // FIXED: Verify hashed token
+        if (!$record || !Hash::check($request->token, $record->token)) {
             return response()->json(['message' => 'Invalid or expired reset link. Please request a new one.'], 400);
         }
 

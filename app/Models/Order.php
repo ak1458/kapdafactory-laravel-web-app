@@ -52,9 +52,15 @@ class Order extends Model
         return $this->hasMany(Payment::class);
     }
 
+    // FIXED: Use loaded relation instead of triggering new query
+    // When payments are eager-loaded, this uses in-memory collection
+    // When not loaded, it will load the relation once
     public function getPaidAmountAttribute()
     {
-        return $this->payments()->sum('amount');
+        // Use the already-loaded relation if available, otherwise load it once
+        return $this->relationLoaded('payments')
+            ? $this->payments->sum('amount')
+            : $this->payments()->sum('amount');
     }
 
     public function getBalanceAttribute()
