@@ -1,0 +1,16 @@
+# Local Smoke Test Report
+
+**Status**: SKIPPED
+
+## Reason
+The build agent environment lacks `php` and `composer`. Therefore, the following actions could not be performed:
+- Starting the Laravel backend server (`php artisan serve`).
+- Running database migrations.
+- Executing curl requests against the local API.
+
+## Manual Validation Required
+Please follow the `final-local-instructions.md` to start the servers and perform the following checks manually:
+1.  Login with `admin@kapda.com`.
+2.  Create a test order.
+3.  Upload an image.
+4.  Verify the order appears in the list.

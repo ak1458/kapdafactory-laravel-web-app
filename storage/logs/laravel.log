@@ -52,3 +52,90 @@
 [2026-02-05 07:50:14] production.INFO: Has File "images": YES  
 [2026-02-05 07:50:14] production.INFO: $_FILES: {"images":{"name":["WhatsApp Image 2026-01-24 at 7.08.04 PM.jpeg"],"full_path":["WhatsApp Image 2026-01-24 at 7.08.04 PM.jpeg"],"type":["image\/jpeg"],"tmp_name":["\/tmp\/phpgERf2t"],"error":[0],"size":[56246]}}  
 [2026-02-05 07:50:14] production.INFO: File Count: 1  
+[2026-02-06 06:08:19] production.INFO: Order Store Request: {"token":"945387","bill_number":null,"customer_name":"Ashraf","entry_date":"2026-02-06","delivery_date":"2026-02-07","remarks":null,"total_amount":"2000"}  
+[2026-02-06 06:08:19] production.INFO: Has File "images": YES  
+[2026-02-06 06:08:19] production.INFO: File Count: 1  
+[2026-02-06 06:08:19] production.INFO: File [0]: Name=bag 1 (1).jpg, Size=2066971, Mime=image/jpeg  
+[2026-02-06 08:53:49] production.ERROR: Unexpected end of input {"exception":"[object] (InvalidArgumentException(code: 0): Unexpected end of input at /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/psy/psysh/src/Shell.php:976)
+[stacktrace]
+#0 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/psy/psysh/src/Shell.php(1510): Psy\\Shell->setCode()
+#1 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/tinker/src/Console/TinkerCommand.php(76): Psy\\Shell->execute()
+#2 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#3 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#4 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure()
+#5 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod()
+#6 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/Container.php(662): Illuminate\\Container\\BoundMethod::call()
+#7 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Console/Command.php(211): Illuminate\\Container\\Container->call()
+#8 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Command/Command.php(326): Illuminate\\Console\\Command->execute()
+#9 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Console/Command.php(180): Symfony\\Component\\Console\\Command\\Command->run()
+#10 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(1088): Illuminate\\Console\\Command->run()
+#11 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(324): Symfony\\Component\\Console\\Application->doRunCommand()
+#12 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#13 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#14 /home/u140314839/domains/kapdafactory.in/public_html/admin/artisan(14): Illuminate\\Foundation\\Console\\Kernel->handle()
+#15 {main}
+"} 
+[2026-02-06 08:54:01] production.ERROR: Unexpected end of input {"exception":"[object] (InvalidArgumentException(code: 0): Unexpected end of input at /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/psy/psysh/src/Shell.php:976)
+[stacktrace]
+#0 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/psy/psysh/src/Shell.php(1510): Psy\\Shell->setCode()
+#1 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/tinker/src/Console/TinkerCommand.php(76): Psy\\Shell->execute()
+#2 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#3 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#4 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure()
+#5 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod()
+#6 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Container/Container.php(662): Illuminate\\Container\\BoundMethod::call()
+#7 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Console/Command.php(211): Illuminate\\Container\\Container->call()
+#8 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Command/Command.php(326): Illuminate\\Console\\Command->execute()
+#9 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Console/Command.php(180): Symfony\\Component\\Console\\Command\\Command->run()
+#10 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(1088): Illuminate\\Console\\Command->run()
+#11 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(324): Symfony\\Component\\Console\\Application->doRunCommand()
+#12 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/symfony/console/Application.php(175): Symfony\\Component\\Console\\Application->doRun()
+#13 /home/u140314839/domains/kapdafactory.in/public_html/admin/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(201): Symfony\\Component\\Console\\Application->run()
+#14 /home/u140314839/domains/kapdafactory.in/public_html/admin/artisan(14): Illuminate\\Foundation\\Console\\Kernel->handle()
+#15 {main}
+"} 
+[2026-02-06 09:14:34] production.INFO: Order Store Request: {"token":"ASh322","bill_number":null,"customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-07","remarks":null,"total_amount":"13455"}  
+[2026-02-06 09:14:34] production.INFO: Has File "images": YES  
+[2026-02-06 09:14:34] production.INFO: File Count: 1  
+[2026-02-06 09:14:34] production.INFO: File [0]: Name=20251210_095212.png, Size=5803105, Mime=image/png  
+[2026-02-06 09:38:04] production.INFO: Order Store Request: {"token":"5888","bill_number":null,"customer_name":"888","entry_date":"2026-02-06","delivery_date":"2026-02-07","remarks":null,"total_amount":"969"}  
+[2026-02-06 09:38:04] production.INFO: Has File "images": YES  
+[2026-02-06 09:38:04] production.INFO: File Count: 1  
+[2026-02-06 09:38:04] production.INFO: File [0]: Name=product ad 2.jpg, Size=2484162, Mime=image/jpeg  
+[2026-02-06 12:27:00] production.INFO: Login attempt {"email":"kapda@factory.in","password":"Kapda@2026"} 
+[2026-02-06 12:27:00] production.INFO: Login success  
+[2026-02-06 12:44:30] production.INFO: Order Store Request: {"token":"879","bill_number":null,"customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-11","remarks":null,"total_amount":"500"}  
+[2026-02-06 12:44:30] production.INFO: Has File "images": NO  
+[2026-02-06 12:44:30] production.WARNING: No images received in request.  
+[2026-02-06 12:44:49] production.INFO: Order Store Request: {"token":"345","customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-11","total_amount":"200","remarks":null}  
+[2026-02-06 12:44:49] production.INFO: Has File "images": NO  
+[2026-02-06 12:44:49] production.WARNING: No images received in request.  
+[2026-02-06 12:45:15] production.INFO: Order Store Request: {"token":"766","customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-09","total_amount":"900","remarks":null}  
+[2026-02-06 12:45:15] production.INFO: Has File "images": NO  
+[2026-02-06 12:45:15] production.WARNING: No images received in request.  
+[2026-02-06 12:45:29] production.INFO: Order Store Request: {"token":"876","customer_name":null,"entry_date":"2026-02-06","delivery_date":null,"total_amount":"600","remarks":null}  
+[2026-02-06 12:45:29] production.INFO: Has File "images": NO  
+[2026-02-06 12:45:29] production.WARNING: No images received in request.  
+[2026-02-06 12:45:43] production.INFO: Order Store Request: {"token":"876","customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-16","total_amount":"500","remarks":null}  
+[2026-02-06 12:45:43] production.INFO: Has File "images": NO  
+[2026-02-06 12:45:43] production.WARNING: No images received in request.  
+[2026-02-06 12:45:43] production.ERROR: Order creation failed: SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '876' for key 'orders_token_unique' (Connection: mysql, SQL: insert into `orders` (`token`, `bill_number`, `customer_name`, `delivery_date`, `entry_date`, `measurements`, `remarks`, `status`, `created_by`, `total_amount`, `updated_at`, `created_at`) values (876, BILL-1770381943, ?, 2026-02-16 00:00:00, 2026-02-06 00:00:00, [], ?, pending, 3, 500, 2026-02-06 12:45:43, 2026-02-06 12:45:43))  
+[2026-02-06 12:45:49] production.INFO: Order Store Request: {"token":"877","customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-16","total_amount":"500","remarks":null}  
+[2026-02-06 12:45:49] production.INFO: Has File "images": NO  
+[2026-02-06 12:45:49] production.WARNING: No images received in request.  
+[2026-02-06 12:47:48] production.INFO: Order Store Request: {"token":"T3523","bill_number":null,"customer_name":null,"entry_date":"2026-02-06","delivery_date":"2026-02-08","remarks":null,"total_amount":"2500"}  
+[2026-02-06 12:47:48] production.INFO: Has File "images": YES  
+[2026-02-06 12:47:48] production.INFO: File Count: 1  
+[2026-02-06 12:47:48] production.INFO: File [0]: Name=product ad 2.jpg, Size=2484162, Mime=image/jpeg  
+[2026-02-06 13:05:55] production.INFO: Login attempt {"email":"kapda@factory.in","password":"Kapda@2026"} 
+[2026-02-06 13:05:55] production.INFO: Login success  
+[2026-02-06 14:44:45] production.INFO: Login attempt for: kapda@factory.in  
+[2026-02-06 14:44:45] production.INFO: Login success for: kapda@factory.in  
+[2026-02-06 14:45:12] production.INFO: Order Store Request received  
+[2026-02-07 02:29:10] production.INFO: Login attempt for: kapda@factory.in  
+[2026-02-07 02:29:10] production.INFO: Login success for: kapda@factory.in  
+[2026-02-07 02:29:45] production.INFO: Order Store Request received  
+[2026-02-07 08:32:09] production.INFO: Login attempt for: kapda@factory.in  
+[2026-02-07 08:32:09] production.INFO: Login success for: kapda@factory.in  
+[2026-02-07 08:32:30] production.INFO: Order Store Request received  
+[2026-02-07 08:33:01] production.INFO: Order Store Request received  
