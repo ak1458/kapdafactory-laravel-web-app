@@ -189,3 +189,21 @@ curl -X POST https://your-domain.com/api/login \
 -   **500 Error**: Check `storage/logs/laravel.log`. Usually path issues in `index.php`.
 -   **404 on API**: Check `public_html/api/.htaccess` (standard Laravel one).
 -   **Images 404**: Check symlink `public_html/api/storage`.
+
+## Fresh Installation & Database Restore
+
+1. **Clone the repo**
+2. **Copy environment template**:
+   \\ash
+   cp .env.example .env
+   \\n3. **Update .env** with your local database credentials.
+4. **Database Import**: Import \database_dump.sql\ into your MySQL database.
+5. **Install Dependencies**:
+   \\ash
+   composer install
+   npm install
+   npm run build
+   \\n6. **Link Storage**:
+   \\ash
+   php artisan storage:link
+   \\n
