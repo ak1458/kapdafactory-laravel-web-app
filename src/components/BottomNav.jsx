@@ -1,0 +1,53 @@
+'use client';
+
+import { useNavigate, useLocation } from '@/src/lib/router';
+import { PlusCircle, Search, TrendingUp } from 'lucide-react';
+
+export default function BottomNav() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const isActive = (path) => location.pathname === path;
+
+    return (
+        <div className="fixed bottom-0 left-0 right-0 glass-nav px-6 py-3 flex justify-around items-center z-50">
+            <button
+                onClick={() => navigate('/')}
+                className={`flex flex-col items-center gap-1 transition-colors ${isActive('/') || isActive('/orders/create')
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                    }`}
+            >
+                <PlusCircle size={24} strokeWidth={isActive('/') ? 2.5 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">New Order</span>
+            </button>
+
+            <button
+                onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    navigate('/dashboard');
+                }}
+                className={`flex flex-col items-center gap-1 transition-colors ${isActive('/dashboard')
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                    }`}
+            >
+                <Search size={24} strokeWidth={isActive('/dashboard') ? 2.5 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">Search</span>
+            </button>
+
+            <button
+                onClick={() => navigate('/collections')}
+                className={`flex flex-col items-center gap-1 transition-colors ${isActive('/collections')
+                    ? 'text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600'
+                    }`}
+            >
+                <TrendingUp size={24} strokeWidth={isActive('/collections') ? 2.5 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">Collections</span>
+            </button>
+        </div>
+    );
+}
+
+
