@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  operator
+}
+
+enum OrderStatus {
+  pending
+  ready
+  delivered
+  transferred
+}
+
+enum PaymentMethod {
+  cash
+  upi
+  online
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  password        String
+  role            Role      @default(operator)
+  rememberToken   String?   @map("remember_token")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  createdOrders Order[]    @relation("OrderCreator")
+  orderLogs     OrderLog[]
+
+  @@map("users")
+}
+
+model Order {
+  id                 Int            @id @default(autoincrement())
+  token              String         @unique @db.VarChar(50)
+  billNumber         String?        @unique @map("bill_number") @db.VarChar(50)
+  customerName       String?        @map("customer_name") @db.VarChar(150)
+  measurements       Json
+  deliveryDate       DateTime?      @map("delivery_date") @db.Date
+  entryDate          DateTime?      @map("entry_date") @db.Date
+  actualDeliveryDate DateTime?      @map("actual_delivery_date") @db.Date
+  status             OrderStatus    @default(pending)
+  remarks            String?        @db.Text
+  createdBy          Int            @map("created_by")
+  totalAmount        Decimal        @default(0) @map("total_amount") @db.Decimal(10, 2)
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  creator  User         @relation("OrderCreator", fields: [createdBy], references: [id])
+  images   OrderImage[]
+  logs     OrderLog[]
+  payments Payment[]
+
+  @@index([deliveryDate, status])
+  @@map("orders")
+}
+
+model OrderImage {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @map("order_id")
+  filename  String
+  mime      String?
+  size      Int?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_images")
+}
+
+model OrderLog {
+  id        Int      @id @default(autoincrement())
+  orderId   Int      @map("order_id")
+  userId    Int?     @map("user_id")
+  action    String
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("order_logs")
+}
+
+model Payment {
+  id            Int           @id @default(autoincrement())
+  orderId       Int           @map("order_id")
+  amount        Decimal       @db.Decimal(10, 2)
+  paymentDate   DateTime      @map("payment_date") @db.Date
+  paymentMethod PaymentMethod @default(cash) @map("payment_method")
+  note          String?       @db.VarChar(255)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}
+
+model PasswordReset {
+  email     String    @id
+  token     String
+  createdAt DateTime? @map("created_at")
+
+  @@map("password_resets")
+}
