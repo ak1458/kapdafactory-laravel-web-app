@@ -1,12 +1,13 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from '@/src/lib/router';
 import api from '../lib/api';
 import CustomDatePicker from '../components/CustomDatePicker';
 import OrderImage from '../components/OrderImage';
-import { ChevronLeft, Edit, Trash2, User, Calendar, X, Clock, Scissors, Truck, ArrowRightLeft, Banknote, Globe } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, User, Calendar, X, Clock, Scissors, Truck, ArrowRightLeft, Banknote, Globe, Camera, Plus } from 'lucide-react';
 import clsx from 'clsx';
+import imageCompression from 'browser-image-compression';
 
 export default function OrderDetail() {
     const { id } = useParams();
@@ -20,6 +21,8 @@ export default function OrderDetail() {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [actualDeliveryDate, setActualDeliveryDate] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
@@ -83,6 +86,35 @@ export default function OrderDetail() {
             fetchOrder();
         } catch {
             alert('Failed to delete image');
+        }
+    };
+
+    const uploadImage = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file.');
+            return;
+        }
+        setUploading(true);
+        try {
+            const compressed = await imageCompression(file, {
+                maxSizeMB: 0.9,
+                maxWidthOrHeight: 1600,
+                useWebWorker: true,
+                fileType: 'image/jpeg',
+            });
+            const formData = new FormData();
+            formData.append('image', compressed);
+            await api.post(`/orders/${id}/images`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            fetchOrder();
+        } catch {
+            alert('Failed to upload image.');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -251,10 +283,32 @@ export default function OrderDetail() {
                     </div>
                 )}
 
-                {/* Images Grid */}
-                {order?.images?.length > 0 && (
-                    <div>
-                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Measurements / Photos</h3>
+                {/* Images / Bill Photos Section — Always visible */}
+                <div>
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Bill Photos</h3>
+                        <label className={clsx(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all",
+                            uploading ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-teal-50 text-teal-700 hover:bg-teal-100 active:scale-95"
+                        )}>
+                            {uploading ? (
+                                <div className="w-3.5 h-3.5 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                            ) : (
+                                <Camera size={14} />
+                            )}
+                            {uploading ? 'Uploading...' : 'Add Photo'}
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                capture="environment"
+                                onChange={uploadImage}
+                                disabled={uploading}
+                                className="hidden"
+                            />
+                        </label>
+                    </div>
+                    {order?.images?.length > 0 ? (
                         <div className="grid grid-cols-3 gap-3">
                             {order.images.map((img) => (
                                 <div key={img.id} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group">
@@ -283,8 +337,14 @@ export default function OrderDetail() {
                                 </div>
                             ))}
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <div className="glass-card rounded-xl p-6 text-center">
+                            <Camera size={32} className="mx-auto text-gray-300 mb-2" />
+                            <p className="text-sm text-gray-400 font-medium">No photos yet</p>
+                            <p className="text-xs text-gray-300 mt-1">Tap "Add Photo" to capture the bill</p>
+                        </div>
+                    )}
+                </div>
 
                 {/* Remarks */}
                 <div className="bg-[#DCF8C6]/30 rounded-xl p-4 border border-[#DCF8C6]">

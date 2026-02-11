@@ -163,16 +163,16 @@ export async function GET(request: NextRequest) {
     const orderIds = orders.map((order) => order.id);
     const paymentTotals = orderIds.length
         ? await prisma.payment.groupBy({
-              by: ['orderId'],
-              where: {
-                  orderId: {
-                      in: orderIds,
-                  },
-              },
-              _sum: {
-                  amount: true,
-              },
-          })
+            by: ['orderId'],
+            where: {
+                orderId: {
+                    in: orderIds,
+                },
+            },
+            _sum: {
+                amount: true,
+            },
+        })
         : [];
 
     const paidByOrderId = new Map(paymentTotals.map((item) => [item.orderId, Number(item._sum.amount || 0)]));
@@ -231,16 +231,16 @@ export async function GET(request: NextRequest) {
         const statsOrderIds = statsOrders.map((order) => order.id);
         const statsPayments = statsOrderIds.length
             ? await prisma.payment.groupBy({
-                  by: ['orderId'],
-                  where: {
-                      orderId: {
-                          in: statsOrderIds,
-                      },
-                  },
-                  _sum: {
-                      amount: true,
-                  },
-              })
+                by: ['orderId'],
+                where: {
+                    orderId: {
+                        in: statsOrderIds,
+                    },
+                },
+                _sum: {
+                    amount: true,
+                },
+            })
             : [];
 
         const paidByStatsOrderId = new Map(statsPayments.map((item) => [item.orderId, Number(item._sum.amount || 0)]));
@@ -347,7 +347,7 @@ export async function POST(request: NextRequest) {
         const order = await prisma.order.create({
             data: {
                 token,
-                billNumber: billNumberInput || `BILL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                billNumber: billNumberInput || token,
                 customerName,
                 deliveryDate,
                 entryDate,

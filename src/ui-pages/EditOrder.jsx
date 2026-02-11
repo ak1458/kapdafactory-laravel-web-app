@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from '@/src/lib/router';
-import { ArrowLeft, Calendar, User, FileText, Save, AlertCircle, Hash, IndianRupee } from 'lucide-react';
+import { ArrowLeft, Calendar, User, FileText, Save, AlertCircle, Hash, IndianRupee, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
 import OrderImage from '../components/OrderImage';
 import CustomDatePicker from '../components/CustomDatePicker';
@@ -13,6 +13,7 @@ export default function EditOrder() {
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [error, setError] = useState('');
+    const [orderToken, setOrderToken] = useState(''); const [showSuccess, setShowSuccess] = useState(false);
 
     const [formData, setFormData] = useState({
         bill_number: '',
@@ -29,8 +30,10 @@ export default function EditOrder() {
             try {
                 const res = await api.get(`/orders/${id}`);
                 const order = res.data;
+                setOrderToken(order.token || '');
+                const billNum = order.bill_number || '';
                 setFormData({
-                    bill_number: order.bill_number || '',
+                    bill_number: billNum.startsWith('BILL-') ? (order.token || '') : billNum,
                     customer_name: order.customer_name || '',
                     entry_date: order.entry_date ? order.entry_date.split('T')[0] : '',
                     delivery_date: order.delivery_date ? order.delivery_date.split('T')[0] : '',
@@ -49,6 +52,7 @@ export default function EditOrder() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.delivery_date) return setError('Expected Delivery Date is required');
         setLoading(true);
         setError('');
 
@@ -61,7 +65,10 @@ export default function EditOrder() {
                 remarks: formData.remarks,
                 total_amount: formData.total_amount
             });
-            navigate(`/orders/${id}`);
+            setShowSuccess(true);
+            setTimeout(() => {
+                navigate(`/orders/${id}`);
+            }, 1500);
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to update order');
             setLoading(false);
@@ -88,13 +95,23 @@ export default function EditOrder() {
                         <ArrowLeft size={20} />
                     </button>
                     <div>
-                        <h1 className="text-lg font-bold">Edit Order</h1>
+                        <h1 className="text-lg font-bold">Edit Order {orderToken ? `#${orderToken}` : ''}</h1>
                         <p className="text-xs opacity-80">Update order details</p>
                     </div>
                 </div>
             </header>
 
             <main className="p-4 max-w-lg mx-auto space-y-4">
+                {/* Success Toast */}
+                {showSuccess && (
+                    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="bg-[#25D366] text-white px-6 py-3 rounded-xl shadow-lg shadow-green-500/30 flex items-center gap-2 font-bold text-sm">
+                            <CheckCircle size={18} />
+                            Order updated successfully!
+                        </div>
+                    </div>
+                )}
+
                 {error && (
                     <div className="p-4 rounded-xl bg-red-50 border border-red-100 flex items-start gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
                         <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -103,24 +120,20 @@ export default function EditOrder() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Bill Number */}
+                    {/* Order / Bill Number - Read Only */}
                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 space-y-3">
                         <div className="flex items-center gap-2 text-[#075E54] mb-1">
                             <Hash size={18} />
-                            <h2 className="font-bold text-xs uppercase tracking-wider">Bill Details</h2>
+                            <h2 className="font-bold text-xs uppercase tracking-wider">Order / Bill No.</h2>
                         </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                                Bill Number <span className="text-gray-300 font-normal">(Optional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={formData.bill_number}
-                                onChange={(e) => setFormData({ ...formData, bill_number: e.target.value })}
-                                className="w-full p-3 bg-gray-50 border-gray-100 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-bold text-gray-900 placeholder-gray-400"
-                                placeholder="e.g. 1024"
-                            />
-                        </div>
+                        <input
+                            type="text"
+                            value={orderToken}
+                            readOnly
+                            disabled
+                            className="w-full p-3 bg-gray-100 border-gray-200 rounded-xl font-bold text-gray-500 cursor-not-allowed"
+                        />
+                        <p className="text-[10px] text-gray-400 ml-1">Cannot be changed. Delete and recreate if incorrect.</p>
                     </div>
 
                     {/* Customer Details */}
@@ -161,13 +174,14 @@ export default function EditOrder() {
 
                             <div>
                                 <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                                    Delivery Date
+                                    Delivery Date <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input
                                         type="date"
                                         value={formData.delivery_date}
                                         onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
+                                        min={new Date().toISOString().split('T')[0]}
                                         className="w-full p-3 pl-10 bg-gray-50 border-gray-100 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-bold text-gray-900"
                                     />
                                     <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />

@@ -14,6 +14,7 @@ const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 export default function CreateOrder() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
 
     // Get today's date (default for entry_date)
     const getTodayDate = () => {
@@ -131,15 +132,20 @@ export default function CreateOrder() {
     };
 
     const handleSubmit = async () => {
-        if (!formData.token) return alert('Token/Bill Number is required');
+        if (!formData.token.trim()) return alert('Order / Bill Number is required');
+        if (!formData.delivery_date) return alert('Expected Delivery Date is required');
+        if (images.length === 0) return alert('At least one photo is required. Please take a photo of the bill.');
         setLoading(true);
 
         const data = new FormData();
         Object.keys(formData).forEach(key => data.append(key, formData[key]));
+        // bill_number is always the same as token
+        data.set('bill_number', formData.token.trim());
 
         images.forEach((image) => {
-            if (image instanceof File) {
-                data.append('images[]', image);
+            // browser-image-compression returns Blob, not File
+            if (image instanceof Blob) {
+                data.append('images[]', image, image.name || 'photo.jpg');
             }
         });
 
@@ -152,9 +158,12 @@ export default function CreateOrder() {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
-            // Release preview URLs before navigating away
+            // Show success toast then navigate
+            setShowSuccess(true);
             releasePreviewUrls(previewUrls);
-            navigate('/dashboard');
+            setTimeout(() => {
+                navigate('/dashboard');
+            }, 1500);
         } catch (err) {
             const msg = err.response?.data?.message || 'Failed to create order.';
             alert(`Error: ${msg}`);
@@ -182,6 +191,16 @@ export default function CreateOrder() {
             </header>
 
             {/* Main Content - scrollable */}
+            {/* Success Toast */}
+            {showSuccess && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="bg-[#25D366] text-white px-6 py-3 rounded-xl shadow-lg shadow-green-500/30 flex items-center gap-2 font-bold text-sm">
+                        <CheckCircle size={18} />
+                        Order saved successfully!
+                    </div>
+                </div>
+            )}
+
             <main className="p-3 overflow-y-auto">
 
                 {/* Form Container - flexible spacing */}
@@ -190,14 +209,15 @@ export default function CreateOrder() {
                     <div className="flex gap-2 sm:gap-3 min-h-[60px] sm:min-h-[70px]">
                         <div className="flex-1 glass-card rounded-xl p-2 sm:p-3 flex flex-col justify-center">
                             <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1 flex items-center gap-1">
-                                <Hash size={10} className="sm:w-3 sm:h-3" /> Token / Bill
+                                <Hash size={10} className="sm:w-3 sm:h-3" /> Order / Bill No. <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
-                                placeholder="A-101"
+                                placeholder="e.g. 700"
                                 value={formData.token}
                                 onChange={(e) => setFormData({ ...formData, token: e.target.value })}
                                 className="w-full text-base sm:text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none bg-transparent"
+                                required
                             />
                         </div>
                         <div className="flex-1 glass-card rounded-xl p-2 sm:p-3 flex flex-col justify-center">
@@ -231,11 +251,12 @@ export default function CreateOrder() {
                         </div>
                         <div className="flex-1 bg-white rounded-xl p-2 sm:p-3 shadow-sm border border-gray-100 flex flex-col justify-center">
                             <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1 flex items-center gap-1">
-                                <Calendar size={10} className="sm:w-3 sm:h-3" /> Delivery
+                                <Calendar size={10} className="sm:w-3 sm:h-3" /> Delivery <span className="text-red-500">*</span>
                             </label>
                             <CustomDatePicker
                                 selected={formData.delivery_date}
                                 onChange={(date) => setFormData({ ...formData, delivery_date: date })}
+                                minDate={getTodayDate()}
                                 placeholder="dd-mm-yyyy"
                             />
                         </div>
@@ -261,7 +282,7 @@ export default function CreateOrder() {
                     <div className="rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-lg flex flex-col min-h-[80px] sm:min-h-[100px]" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.8)' }}>
                         <div className="flex justify-between items-center mb-1 sm:mb-2 flex-none">
                             <h3 className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                <Camera size={10} className="sm:w-3 sm:h-3" /> Photos
+                                <Camera size={10} className="sm:w-3 sm:h-3" /> Photos <span className="text-red-500">*</span>
                             </h3>
                             <span className="text-[9px] sm:text-[10px] font-bold text-gray-400">
                                 {images.length} added
