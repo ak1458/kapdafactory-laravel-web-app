@@ -1,12 +1,64 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useNavigate } from '@/src/lib/router';
 import api from '../lib/api';
-import CustomDatePicker from '../components/CustomDatePicker';
 import OrderImage from '../components/OrderImage';
 import { ChevronLeft, Edit, Trash2, User, Calendar, X, Clock, Scissors, Truck, ArrowRightLeft, Banknote, Globe } from 'lucide-react';
 import clsx from 'clsx';
+
+const DeliveryDatePicker = dynamic(() => import('../components/CustomDatePicker'), {
+    ssr: false,
+    loading: () => (
+        <div className="w-full py-2 text-sm text-gray-400 font-medium">
+            Loading calendar...
+        </div>
+    ),
+});
+
+const STATUS_TIMELINE_CONFIG = {
+    pending: {
+        icon: Clock,
+        label: 'Pending',
+        dotClass: 'bg-amber-100',
+        iconClass: 'text-amber-600',
+        labelClass: 'text-amber-600',
+    },
+    ready: {
+        icon: Scissors,
+        label: 'Ready',
+        dotClass: 'bg-blue-100',
+        iconClass: 'text-blue-600',
+        labelClass: 'text-blue-600',
+    },
+    delivered: {
+        icon: Truck,
+        label: 'Delivered',
+        dotClass: 'bg-green-100',
+        iconClass: 'text-green-600',
+        labelClass: 'text-green-600',
+    },
+    transferred: {
+        icon: ArrowRightLeft,
+        label: 'Transferred',
+        dotClass: 'bg-purple-100',
+        iconClass: 'text-purple-600',
+        labelClass: 'text-purple-600',
+    },
+};
+
+const DEFAULT_TIMELINE_CONFIG = {
+    icon: Clock,
+    label: 'Status',
+    dotClass: 'bg-gray-100',
+    iconClass: 'text-gray-600',
+    labelClass: 'text-gray-600',
+};
+
+const PREVIEW_IMAGE_LIMIT = 6;
+const PREVIEW_PAYMENT_LIMIT = 12;
+const PREVIEW_LOG_LIMIT = 16;
 
 export default function OrderDetail() {
     const { id } = useParams();
@@ -15,46 +67,108 @@ export default function OrderDetail() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [deleting, setDeleting] = useState(false);
+    const [statusUpdating, setStatusUpdating] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [actualDeliveryDate, setActualDeliveryDate] = useState('');
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState('');
+    const [showAllPayments, setShowAllPayments] = useState(false);
+    const [showAllLogs, setShowAllLogs] = useState(false);
+    const [showAllImages, setShowAllImages] = useState(false);
+    const fetchSeqRef = useRef(0);
+    const isMountedRef = useRef(true);
 
-    // Get today's date in YYYY-MM-DD format
-    const getTodayDate = () => {
+    const todayDate = useMemo(() => {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    };
+    }, []);
 
-    const fetchOrder = useCallback(async () => {
+    useEffect(() => {
+        return () => {
+            isMountedRef.current = false;
+        };
+    }, []);
+
+    const isTimeoutError = useCallback((err) => {
+        return (
+            err?.code === 'ECONNABORTED' ||
+            err?.message === 'Request timed out. Please try again.' ||
+            String(err?.message || '').toLowerCase().includes('timeout')
+        );
+    }, []);
+
+    const fetchOrderFull = useCallback(async (activeFetchSeq = fetchSeqRef.current) => {
+        if (!id || id === 'undefined' || id === 'null') return;
+
+        setHistoryLoading(true);
+        setHistoryError('');
+        try {
+            const res = await api.get(`/orders/${id}`);
+            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
+            setOrder(res.data);
+        } catch (err) {
+            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
+            console.error('Order full fetch error:', err);
+            setHistoryError(isTimeoutError(err) ? 'History loading timed out.' : 'Failed to load full history.');
+        } finally {
+            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
+            setHistoryLoading(false);
+        }
+    }, [id, isTimeoutError]);
+
+    const fetchOrderLite = useCallback(async () => {
+        const fetchSeq = fetchSeqRef.current + 1;
+        fetchSeqRef.current = fetchSeq;
+
         if (!id || id === 'undefined' || id === 'null') {
+            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
             setError('Invalid Order ID');
             setLoading(false);
             return;
         }
 
         try {
-            const res = await api.get(`/orders/${id}`);
+            const res = await api.get(`/orders/${id}?lite=1`);
+            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
             setOrder(res.data);
+            setError(null);
             setLoading(false);
+            setShowAllPayments(false);
+            setShowAllLogs(false);
+            setShowAllImages(false);
+
+            if (res.data?.meta?.history_deferred) {
+                setTimeout(() => {
+                    if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
+                    fetchOrderFull(fetchSeq);
+                }, 120);
+            }
         } catch (err) {
-            console.error('Order fetch error:', err);
-            setError('Failed to load order');
+            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
+            console.error('Order lite fetch error:', err);
+            setError(isTimeoutError(err) ? 'Order loading timed out. Please retry.' : 'Failed to load order');
             setLoading(false);
         }
-    }, [id]);
+    }, [fetchOrderFull, id, isTimeoutError]);
 
     useEffect(() => {
         if (!id || id === 'undefined') {
             // Optional: Auto-redirect if ID is clearly bad
             // navigate('/dashboard');
         }
-        fetchOrder();
-    }, [fetchOrder, id]);
+        setLoading(true);
+        setHistoryLoading(false);
+        setHistoryError('');
+        fetchOrderLite();
+    }, [fetchOrderLite, id]);
 
     const updateStatus = async (newStatus) => {
+        if (statusUpdating) return;
         try {
+            setStatusUpdating(true);
             // Use today's date as default if not selected
             const deliveryDate = newStatus === 'delivered'
                 ? (actualDeliveryDate || new Date().toISOString().split('T')[0])
@@ -70,9 +184,11 @@ export default function OrderDetail() {
             setPaymentAmount('');
             setPaymentMethod('cash');
             setActualDeliveryDate('');
-            fetchOrder();
+            fetchOrderFull(fetchSeqRef.current);
         } catch {
             alert('Failed to update status');
+        } finally {
+            setStatusUpdating(false);
         }
     };
 
@@ -80,11 +196,56 @@ export default function OrderDetail() {
         if (!confirm('Delete this image?')) return;
         try {
             await api.delete(`/orders/${id}/images/${imageId}`);
-            fetchOrder();
+            fetchOrderFull(fetchSeqRef.current);
         } catch {
             alert('Failed to delete image');
         }
     };
+
+    const payments = useMemo(() => {
+        if (!Array.isArray(order?.payments)) {
+            return [];
+        }
+        return order.payments;
+    }, [order?.payments]);
+
+    const visiblePayments = useMemo(() => {
+        if (showAllPayments) return payments;
+        return payments.slice(0, PREVIEW_PAYMENT_LIMIT);
+    }, [payments, showAllPayments]);
+
+    const statusLogs = useMemo(() => {
+        if (!Array.isArray(order?.logs)) {
+            return [];
+        }
+        return order.logs
+            .filter((log) => log.action.startsWith('status_changed:'))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }, [order?.logs]);
+
+    const visibleStatusLogs = useMemo(() => {
+        if (showAllLogs) return statusLogs;
+        return statusLogs.slice(0, PREVIEW_LOG_LIMIT);
+    }, [showAllLogs, statusLogs]);
+
+    const images = useMemo(() => {
+        if (!Array.isArray(order?.images)) {
+            return [];
+        }
+        return order.images;
+    }, [order?.images]);
+
+    const visibleImages = useMemo(() => {
+        if (showAllImages) return images;
+        return images.slice(0, PREVIEW_IMAGE_LIMIT);
+    }, [images, showAllImages]);
+
+    const formatTruncationHint = useCallback((returned, count, label) => {
+        if (Number.isFinite(count) && count > returned) {
+            return `Showing latest ${returned} of ${count} ${label}`;
+        }
+        return `Showing latest ${returned} ${label}`;
+    }, []);
 
     if (loading) return <div className="flex justify-center items-center h-screen text-[#075E54] font-bold">Loading...</div>;
     if (error) {
@@ -93,7 +254,7 @@ export default function OrderDetail() {
                 <p className="text-center text-red-500 font-bold">{error}</p>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={fetchOrder}
+                        onClick={fetchOrderLite}
                         className="px-4 py-2 rounded-xl bg-[#075E54] text-white text-sm font-semibold"
                     >
                         Retry
@@ -217,51 +378,93 @@ export default function OrderDetail() {
                 </div>
 
                 {/* Payment History Table */}
-                {order?.payments?.length > 0 && (
+                {(payments.length > 0 || historyLoading || historyError) && (
                     <div className="glass-card rounded-xl overflow-hidden">
                         <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment History</h3>
+                            {historyLoading && (
+                                <p className="text-[10px] text-gray-500 mt-1 normal-case tracking-normal">
+                                    Loading full payment history...
+                                </p>
+                            )}
+                            {!historyLoading && order?.meta?.payments_truncated && (
+                                <p className="text-[10px] text-amber-600 mt-1 normal-case tracking-normal">
+                                    {formatTruncationHint(order.meta.payments_returned, order.meta.payments_count, 'payments')}
+                                </p>
+                            )}
+                            {!historyLoading && historyError && (
+                                <div className="mt-1 flex items-center gap-2">
+                                    <p className="text-[10px] text-red-500 normal-case tracking-normal">{historyError}</p>
+                                    <button
+                                        onClick={() => fetchOrderFull(fetchSeqRef.current)}
+                                        className="text-[10px] font-bold text-[#075E54]"
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
+                            )}
                         </div>
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
-                                <tr>
-                                    <th className="px-4 py-2 font-medium">Date</th>
-                                    <th className="px-4 py-2 font-medium">Amount</th>
-                                    <th className="px-4 py-2 font-medium">Method</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {order.payments.map((payment) => (
-                                    <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
-                                        <td className="px-4 py-2 text-gray-600">
-                                            {new Date(payment.payment_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                                        </td>
-                                        <td className="px-4 py-2 font-bold text-green-600">₹{payment.amount}</td>
-                                        <td className="px-4 py-2">
-                                            <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${(payment.payment_method === 'online' || payment.payment_method === 'upi') ? 'bg-blue-100 text-blue-600' :
-                                                'bg-green-100 text-green-600'
-                                                }`}>
-                                                {payment.payment_method === 'upi' ? 'online' : (payment.payment_method || 'cash')}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        {visiblePayments.length > 0 ? (
+                            <>
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
+                                        <tr>
+                                            <th className="px-4 py-2 font-medium">Date</th>
+                                            <th className="px-4 py-2 font-medium">Amount</th>
+                                            <th className="px-4 py-2 font-medium">Method</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {visiblePayments.map((payment) => (
+                                            <tr key={payment.id} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-4 py-2 text-gray-600">
+                                                    {new Date(payment.payment_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+                                                </td>
+                                                <td className="px-4 py-2 font-bold text-green-600">₹{payment.amount}</td>
+                                                <td className="px-4 py-2">
+                                                    <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded-full ${(payment.payment_method === 'online' || payment.payment_method === 'upi') ? 'bg-blue-100 text-blue-600' :
+                                                        'bg-green-100 text-green-600'
+                                                        }`}>
+                                                        {payment.payment_method === 'upi' ? 'online' : (payment.payment_method || 'cash')}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {!showAllPayments && payments.length > visiblePayments.length && (
+                                    <button
+                                        onClick={() => setShowAllPayments(true)}
+                                        className="w-full border-t border-gray-100 py-2 text-xs font-bold text-[#075E54]"
+                                    >
+                                        Show all payments
+                                    </button>
+                                )}
+                            </>
+                        ) : (
+                            <p className="px-4 py-3 text-xs font-medium text-gray-500">
+                                {historyLoading ? 'Preparing payment history...' : 'No payment records yet.'}
+                            </p>
+                        )}
                     </div>
                 )}
 
                 {/* Images Grid */}
-                {order?.images?.length > 0 && (
+                {images.length > 0 && (
                     <div>
-                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Measurements / Photos</h3>
+                        <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Measurements / Photos</h3>
+                        {order?.meta?.images_truncated && (
+                            <p className="text-[10px] text-amber-600 mb-2">
+                                {formatTruncationHint(order.meta.images_returned, order.meta.images_count, 'photos')}
+                            </p>
+                        )}
                         <div className="grid grid-cols-3 gap-3">
-                            {order.images.map((img) => (
+                            {visibleImages.map((img) => (
                                 <div key={img.id} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group">
                                     <OrderImage
                                         image={img}
                                         alt="Order photo"
-                                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                                        className="w-full h-full object-cover cursor-pointer"
                                         onClick={() => setSelectedImage(img)}
                                         fallback={
                                             <div className="w-full h-full flex items-center justify-center text-xs font-semibold text-gray-400">
@@ -283,6 +486,14 @@ export default function OrderDetail() {
                                 </div>
                             ))}
                         </div>
+                        {!showAllImages && images.length > visibleImages.length && (
+                            <button
+                                onClick={() => setShowAllImages(true)}
+                                className="mt-2 w-full py-2 rounded-xl bg-white text-xs font-bold text-[#075E54] border border-gray-200"
+                            >
+                                Show all photos
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -302,8 +513,9 @@ export default function OrderDetail() {
                     <div className="grid grid-cols-2 gap-4">
                         <button
                             onClick={() => updateStatus('pending')}
+                            disabled={statusUpdating}
                             className={clsx(
-                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
                                 order?.status === 'pending'
                                     ? "bg-gradient-to-br from-amber-400 to-orange-500 border-transparent text-white shadow-lg shadow-orange-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-amber-200 hover:bg-amber-50/50 hover:shadow-md"
@@ -317,8 +529,9 @@ export default function OrderDetail() {
 
                         <button
                             onClick={() => updateStatus('ready')}
+                            disabled={statusUpdating}
                             className={clsx(
-                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
                                 order?.status === 'ready'
                                     ? "bg-gradient-to-br from-blue-400 to-blue-600 border-transparent text-white shadow-lg shadow-blue-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-md"
@@ -332,8 +545,9 @@ export default function OrderDetail() {
 
                         <button
                             onClick={() => setShowDeliveryModal(true)}
+                            disabled={statusUpdating}
                             className={clsx(
-                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
                                 order?.status === 'delivered'
                                     ? "bg-gradient-to-br from-[#25D366] to-[#128C7E] border-transparent text-white shadow-lg shadow-green-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-green-200 hover:bg-green-50/50 hover:shadow-md"
@@ -347,8 +561,9 @@ export default function OrderDetail() {
 
                         <button
                             onClick={() => updateStatus('transferred')}
+                            disabled={statusUpdating}
                             className={clsx(
-                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group",
+                                "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
                                 order?.status === 'transferred'
                                     ? "bg-gradient-to-br from-purple-400 to-purple-600 border-transparent text-white shadow-lg shadow-purple-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-purple-200 hover:bg-purple-50/50 hover:shadow-md"
@@ -363,38 +578,54 @@ export default function OrderDetail() {
                 </div>
 
                 {/* Status Timeline */}
-                {order?.logs && order.logs.length > 0 && (
+                {(visibleStatusLogs.length > 0 || historyLoading || historyError) && (
                     <div className="glass-card rounded-2xl p-5">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <Clock size={14} />
                             Status Timeline
                         </h3>
-                        <div className="space-y-3">
-                            {order.logs
-                                .filter(log => log.action.startsWith('status_changed:'))
-                                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                                .map((log, index) => {
+                        {historyLoading && (
+                            <p className="text-[10px] text-gray-500 mb-3">
+                                Loading full timeline...
+                            </p>
+                        )}
+                        {!historyLoading && order?.meta?.logs_truncated && (
+                            <p className="text-[10px] text-amber-600 mb-3">
+                                {formatTruncationHint(order.meta.logs_returned, order.meta.logs_count, 'logs')}
+                            </p>
+                        )}
+                        {!historyLoading && historyError && (
+                            <div className="mb-3 flex items-center gap-2">
+                                <p className="text-[10px] text-red-500">{historyError}</p>
+                                <button
+                                    onClick={() => fetchOrderFull(fetchSeqRef.current)}
+                                    className="text-[10px] font-bold text-[#075E54]"
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        )}
+                        {visibleStatusLogs.length > 0 ? (
+                            <div className="space-y-3">
+                                {visibleStatusLogs.map((log, index) => {
                                     const status = log.action.replace('status_changed:', '');
-                                    const statusConfig = {
-                                        pending: { color: 'amber', icon: Clock, label: 'Pending' },
-                                        ready: { color: 'blue', icon: Scissors, label: 'Ready' },
-                                        delivered: { color: 'green', icon: Truck, label: 'Delivered' },
-                                        transferred: { color: 'purple', icon: ArrowRightLeft, label: 'Transferred' }
+                                    const config = STATUS_TIMELINE_CONFIG[status] || {
+                                        ...DEFAULT_TIMELINE_CONFIG,
+                                        label: status || 'Status',
                                     };
-                                    const config = statusConfig[status] || { color: 'gray', icon: Clock, label: status };
                                     const Icon = config.icon;
 
                                     return (
                                         <div key={log.id} className="flex items-start gap-3 relative">
-                                            {index < order.logs.filter(l => l.action.startsWith('status_changed:')).length - 1 && (
+                                            {index < visibleStatusLogs.length - 1 && (
                                                 <div className="absolute left-[15px] top-8 bottom-0 w-0.5 bg-gray-200" />
                                             )}
-                                            <div className={`flex-none w-8 h-8 rounded-full bg-${config.color}-100 flex items-center justify-center relative z-10`}>
-                                                <Icon size={16} className={`text-${config.color}-600`} />
+                                            <div className={clsx('flex-none w-8 h-8 rounded-full flex items-center justify-center relative z-10', config.dotClass)}>
+                                                <Icon size={16} className={config.iconClass} />
                                             </div>
                                             <div className="flex-1 pt-0.5">
                                                 <div className="flex items-center justify-between">
-                                                    <span className={`font-bold text-sm text-${config.color}-600`}>
+                                                    <span className={clsx('font-bold text-sm', config.labelClass)}>
                                                         {config.label}
                                                     </span>
                                                     <span className="text-xs text-gray-400">
@@ -413,7 +644,20 @@ export default function OrderDetail() {
                                         </div>
                                     );
                                 })}
-                        </div>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-gray-500">
+                                {historyLoading ? 'Preparing timeline...' : 'No status updates yet.'}
+                            </p>
+                        )}
+                        {!showAllLogs && statusLogs.length > visibleStatusLogs.length && (
+                            <button
+                                onClick={() => setShowAllLogs(true)}
+                                className="mt-3 w-full py-2 rounded-xl bg-white text-xs font-bold text-[#075E54] border border-gray-200"
+                            >
+                                Show full timeline
+                            </button>
+                        )}
                     </div>
                 )}
             </main>
@@ -450,10 +694,10 @@ export default function OrderDetail() {
 
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider ml-1">Delivery Date</label>
-                                <CustomDatePicker
-                                    selected={actualDeliveryDate || getTodayDate()}
+                                <DeliveryDatePicker
+                                    selected={actualDeliveryDate || todayDate}
                                     onChange={(date) => setActualDeliveryDate(date)}
-                                    maxDate={getTodayDate()}
+                                    maxDate={todayDate}
                                     placeholder="When did customer pick up?"
                                     className="text-sm font-bold text-gray-900"
                                 />
@@ -526,9 +770,10 @@ export default function OrderDetail() {
                                 </button>
                                 <button
                                     onClick={() => updateStatus('delivered')}
-                                    className="py-2.5 rounded-xl font-bold bg-[#25D366] text-white text-sm"
+                                    disabled={statusUpdating}
+                                    className="py-2.5 rounded-xl font-bold bg-[#25D366] text-white text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    Confirm
+                                    {statusUpdating ? 'Saving...' : 'Confirm'}
                                 </button>
                             </div>
                         </div>

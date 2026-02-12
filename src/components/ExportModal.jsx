@@ -1,10 +1,9 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { X, Download, Calendar, FileText, CheckSquare, Square, Sparkles } from 'lucide-react';
 import CustomDatePicker from './CustomDatePicker';
 
-// Get date helpers
 const getToday = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -34,13 +33,13 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
         amount: true,
         status: true,
         payment_method: true,
-        remarks: false
+        remarks: false,
     });
 
     if (!isOpen) return null;
 
     const toggleField = (field) => {
-        setFields(prev => ({ ...prev, [field]: !prev[field] }));
+        setFields((prev) => ({ ...prev, [field]: !prev[field] }));
     };
 
     const getDateParams = () => {
@@ -65,10 +64,12 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
         if (from) params.append('date_from', from);
         if (to) params.append('date_to', to);
 
-        const selectedFields = Object.entries(fields)
-            .filter(([, selected]) => selected)
-            .map(([field]) => field);
-        params.append('fields', selectedFields.join(','));
+        if (exportType === 'orders') {
+            const selectedFields = Object.entries(fields)
+                .filter(([, selected]) => selected)
+                .map(([field]) => field);
+            params.append('fields', selectedFields.join(','));
+        }
 
         const endpoint = exportType === 'collections' ? '/api/export/collections' : '/api/export/orders';
         window.open(`${endpoint}?${params}`, '_blank');
@@ -76,10 +77,10 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
     };
 
     const dateOptions = [
-        { id: 'today', label: 'Today', icon: '📅' },
-        { id: 'week', label: 'Last 7 Days', icon: '📆' },
-        { id: 'month', label: 'This Month', icon: '🗓️' },
-        { id: 'custom', label: 'Custom', icon: '⚙️' }
+        { id: 'today', label: 'Today', icon: 'T' },
+        { id: 'week', label: 'Last 7 Days', icon: '7D' },
+        { id: 'month', label: 'This Month', icon: 'M' },
+        { id: 'custom', label: 'Custom', icon: 'C' },
     ];
 
     const fieldOptions = [
@@ -91,7 +92,7 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
         { id: 'amount', label: 'Amount' },
         { id: 'status', label: 'Status' },
         { id: 'payment_method', label: 'Payment Method' },
-        { id: 'remarks', label: 'Remarks' }
+        { id: 'remarks', label: 'Remarks' },
     ];
 
     const selectedCount = Object.values(fields).filter(Boolean).length;
@@ -101,21 +102,22 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
             className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
             onClick={onClose}
         >
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
 
-            {/* Modal */}
             <div
                 className="relative bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md shadow-2xl overflow-hidden max-h-[80vh] sm:max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300 mb-20 sm:mb-0"
-                onClick={e => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
-                {/* Header - Premium gradient */}
                 <div className="relative overflow-hidden flex-shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-[#075E54] via-[#128C7E] to-[#25D366]" />
-                    <div className="absolute inset-0 opacity-20" style={{
-                        backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.2) 1px, transparent 1px)',
-                        backgroundSize: '20px 20px'
-                    }} />
+                    <div
+                        className="absolute inset-0 opacity-20"
+                        style={{
+                            backgroundImage:
+                                'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.2) 1px, transparent 1px)',
+                            backgroundSize: '20px 20px',
+                        }}
+                    />
 
                     <div className="relative p-5">
                         <div className="flex items-center justify-between">
@@ -138,16 +140,14 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
                     </div>
                 </div>
 
-                {/* Content - Scrollable */}
                 <div className="p-5 space-y-5 overflow-y-auto flex-1 bg-gray-50/50">
-                    {/* Date Range Section */}
                     <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2 mb-3">
                             <Calendar size={14} className="text-teal-600" />
                             Date Range
                         </label>
                         <div className="grid grid-cols-2 gap-2">
-                            {dateOptions.map(opt => (
+                            {dateOptions.map((opt) => (
                                 <button
                                     key={opt.id}
                                     onClick={() => setDateRange(opt.id)}
@@ -162,7 +162,6 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
                             ))}
                         </div>
 
-                        {/* Custom Date Pickers */}
                         {dateRange === 'custom' && (
                             <div className="grid grid-cols-2 gap-3 mt-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                                 <div>
@@ -189,40 +188,40 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
                         )}
                     </div>
 
-                    {/* Fields Section */}
-                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-3">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                                <FileText size={14} className="text-teal-600" />
-                                Include Fields
-                            </label>
-                            <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-full">
-                                {selectedCount} selected
-                            </span>
+                    {exportType === 'orders' && (
+                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between mb-3">
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                                    <FileText size={14} className="text-teal-600" />
+                                    Include Fields
+                                </label>
+                                <span className="text-xs font-bold text-teal-600 bg-teal-50 px-2 py-1 rounded-full">
+                                    {selectedCount} selected
+                                </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                {fieldOptions.map((opt) => (
+                                    <button
+                                        key={opt.id}
+                                        onClick={() => toggleField(opt.id)}
+                                        className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 active:scale-[0.98] ${fields[opt.id]
+                                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-300 shadow-sm'
+                                            : 'bg-gray-50 text-gray-500 border-2 border-gray-100 hover:border-gray-200'
+                                            }`}
+                                    >
+                                        {fields[opt.id] ? (
+                                            <CheckSquare size={16} className="text-green-600 flex-shrink-0" />
+                                        ) : (
+                                            <Square size={16} className="text-gray-400 flex-shrink-0" />
+                                        )}
+                                        <span className="truncate text-xs font-semibold">{opt.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            {fieldOptions.map(opt => (
-                                <button
-                                    key={opt.id}
-                                    onClick={() => toggleField(opt.id)}
-                                    className={`py-2.5 px-3 rounded-xl text-sm font-medium transition-all flex items-center gap-2 active:scale-[0.98] ${fields[opt.id]
-                                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border-2 border-green-300 shadow-sm'
-                                        : 'bg-gray-50 text-gray-500 border-2 border-gray-100 hover:border-gray-200'
-                                        }`}
-                                >
-                                    {fields[opt.id] ? (
-                                        <CheckSquare size={16} className="text-green-600 flex-shrink-0" />
-                                    ) : (
-                                        <Square size={16} className="text-gray-400 flex-shrink-0" />
-                                    )}
-                                    <span className="truncate text-xs font-semibold">{opt.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* Footer - Fixed */}
                 <div className="p-5 border-t border-gray-100 flex-shrink-0 bg-white">
                     <button
                         onClick={handleExport}
@@ -237,4 +236,3 @@ export default function ExportModal({ isOpen, onClose, exportType = 'orders' }) 
         </div>
     );
 }
-

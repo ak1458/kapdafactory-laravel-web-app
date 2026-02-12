@@ -5,6 +5,7 @@ import { prisma } from '@/src/server/prisma';
 const tokenSecret = new TextEncoder().encode(
     process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET || 'kapdafactory-dev-secret-change-me'
 );
+const TRUST_TOKEN_AUTH = process.env.KF_AUTH_TRUST_TOKEN !== 'false';
 
 export type AuthUser = {
     id: number;
@@ -16,11 +17,12 @@ export type AuthUser = {
 type TokenPayload = {
     sub: string;
     email: string;
+    name: string;
     role: string;
 };
 
 export async function createAccessToken(user: AuthUser) {
-    return new SignJWT({ email: user.email, role: user.role })
+    return new SignJWT({ email: user.email, name: user.name, role: user.role })
         .setProtectedHeader({ alg: 'HS256' })
         .setIssuedAt()
         .setExpirationTime('30d')
@@ -34,6 +36,7 @@ export async function verifyAccessToken(token: string): Promise<TokenPayload | n
         return {
             sub: String(payload.sub),
             email: String(payload.email || ''),
+            name: String(payload.name || ''),
             role: String(payload.role || 'operator'),
         };
     } catch {
@@ -64,6 +67,15 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
     const userId = Number(payload.sub);
     if (!Number.isSafeInteger(userId) || userId < 1) {
         return null;
+    }
+
+    if (TRUST_TOKEN_AUTH) {
+        return {
+            id: userId,
+            email: payload.email,
+            name: payload.name || payload.email || `user-${userId}`,
+            role: payload.role,
+        };
     }
 
     const user = await prisma.user.findUnique({

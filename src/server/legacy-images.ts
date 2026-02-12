@@ -4,6 +4,14 @@ import { normalizeStoredRelativePath } from '@/src/server/files';
 
 const STORAGE_ROOT = path.join(process.cwd(), 'public', 'storage');
 const VALID_IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.svg', '.avif']);
+const ENABLE_LEGACY_IMAGE_FALLBACK = /^(1|true)$/i.test(process.env.KF_ENABLE_LEGACY_IMAGE_FALLBACK || '');
+const LEGACY_FALLBACK_MAX_ORDER_ID = Number.parseInt(process.env.KF_LEGACY_IMAGE_FALLBACK_MAX_ORDER_ID || '', 10);
+const LEGACY_FALLBACK_ORDER_IDS = new Set(
+    String(process.env.KF_LEGACY_IMAGE_FALLBACK_ORDER_IDS || '')
+        .split(',')
+        .map((value) => Number.parseInt(value.trim(), 10))
+        .filter((value) => Number.isSafeInteger(value) && value > 0)
+);
 
 function isImageFilename(filename: string) {
     const ext = path.extname(filename).toLowerCase();
@@ -37,8 +45,31 @@ function toLegacyImage(orderId: number, filename: string, index: number) {
     };
 }
 
+export function shouldUseLegacyImageFallback(orderId: number) {
+    if (!ENABLE_LEGACY_IMAGE_FALLBACK) {
+        return false;
+    }
+    if (!Number.isSafeInteger(orderId) || orderId < 1) {
+        return false;
+    }
+
+    if (LEGACY_FALLBACK_ORDER_IDS.size > 0) {
+        return LEGACY_FALLBACK_ORDER_IDS.has(orderId);
+    }
+
+    if (Number.isSafeInteger(LEGACY_FALLBACK_MAX_ORDER_ID) && LEGACY_FALLBACK_MAX_ORDER_ID > 0) {
+        return orderId <= LEGACY_FALLBACK_MAX_ORDER_ID;
+    }
+
+    // Safety-first default: if fallback is enabled but no explicit scope is set,
+    // do not auto-attach legacy files across all orders.
+    return false;
+}
+
 export async function getLegacyImagesForOrder(orderId: number, limit = 1) {
     if (!orderId || limit <= 0) return [];
+
+    if (!shouldUseLegacyImageFallback(orderId)) return [];
 
     const orderDir = path.join(STORAGE_ROOT, 'uploads', 'orders', String(orderId));
     const files = await readdir(orderDir).catch(() => [] as string[]);

@@ -12,7 +12,7 @@ import ExportModal from '../components/ExportModal';
 import { AlertCircle, Inbox, Calendar, LogOut, Search, X, Download } from 'lucide-react';
 
 const SEARCH_DEBOUNCE_MS = 350;
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 15;
 
 export default function OrderList() {
     const navigate = useNavigate();
@@ -54,7 +54,7 @@ export default function OrderList() {
                 per_page: PAGE_SIZE,
             };
 
-            if (dateFilter) {
+            if (dateFilter && typeof dateFilter === 'string' && dateFilter.trim() !== '') {
                 params.date_from = dateFilter;
                 params.date_to = dateFilter;
                 params.date = dateFilter;
@@ -64,8 +64,15 @@ export default function OrderList() {
             return res.data;
         },
         placeholderData: (previousData) => previousData,
-        staleTime: 0,
-        refetchOnWindowFocus: true,
+        staleTime: 5000, // Keep data fresh for 5 seconds
+        refetchOnWindowFocus: false, // Prevent aggressive refetching on focus
+        retry: (failureCount, error) => {
+            // Don't retry on 401/403/422
+            if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 422) {
+                return false;
+            }
+            return failureCount < 2;
+        }
     });
 
     const orders = data?.data || [];
@@ -77,7 +84,7 @@ export default function OrderList() {
             if (!dateString) return 'Select Date';
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return 'Invalid Date';
-            return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+            return date.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
         } catch {
             return 'Invalid Date';
         }
@@ -267,7 +274,9 @@ export default function OrderList() {
                             <OrderCard key={order.id} order={order} />
                         ))}
                         {isFetching && (
-                            <div className="py-3 text-center text-xs font-medium text-gray-500">Refreshing...</div>
+                            <div className="py-4 flex justify-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
+                            </div>
                         )}
                     </div>
                 )}

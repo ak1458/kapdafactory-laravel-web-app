@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from '@/src/lib/router';
 import { ArrowLeft, Calendar, User, FileText, Save, AlertCircle, Hash, IndianRupee } from 'lucide-react';
 import api from '../lib/api';
 import OrderImage from '../components/OrderImage';
-import CustomDatePicker from '../components/CustomDatePicker';
 
 export default function EditOrder() {
     const { id } = useParams();
     const navigate = useNavigate();
+    const isMountedRef = useRef(true);
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [error, setError] = useState('');
@@ -25,12 +25,15 @@ export default function EditOrder() {
     });
 
     useEffect(() => {
+        isMountedRef.current = true;
+
         const fetchOrder = async () => {
             try {
                 const res = await api.get(`/orders/${id}`);
                 const order = res.data;
+                if (!isMountedRef.current) return;
                 setFormData({
-                    bill_number: order.bill_number || '',
+                    bill_number: order.bill_number || order.token || '',
                     customer_name: order.customer_name || '',
                     entry_date: order.entry_date ? order.entry_date.split('T')[0] : '',
                     delivery_date: order.delivery_date ? order.delivery_date.split('T')[0] : '',
@@ -39,30 +42,50 @@ export default function EditOrder() {
                     images: order.images || []
                 });
             } catch {
+                if (!isMountedRef.current) return;
                 setError('Failed to load order details');
             } finally {
+                if (!isMountedRef.current) return;
                 setFetching(false);
             }
         };
         fetchOrder();
+
+        return () => {
+            isMountedRef.current = false;
+        };
     }, [id]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        const orderNumber = String(formData.bill_number || '').trim();
+        if (!orderNumber) {
+            setError('Bill / Token number is required.');
+            return;
+        }
+
+        const totalAmountValue = Number(formData.total_amount);
+        if (!Number.isFinite(totalAmountValue) || totalAmountValue <= 0) {
+            setError('Total amount must be greater than 0.');
+            return;
+        }
+
         setLoading(true);
         setError('');
 
         try {
             await api.put(`/orders/${id}`, {
-                bill_number: formData.bill_number,
+                bill_number: orderNumber,
+                token: orderNumber,
                 customer_name: formData.customer_name,
                 entry_date: formData.entry_date,
                 delivery_date: formData.delivery_date,
                 remarks: formData.remarks,
-                total_amount: formData.total_amount
+                total_amount: totalAmountValue
             });
             navigate(`/orders/${id}`);
         } catch (err) {
+            if (!isMountedRef.current) return;
             setError(err.response?.data?.message || 'Failed to update order');
             setLoading(false);
         }
@@ -111,7 +134,7 @@ export default function EditOrder() {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">
-                                Bill Number <span className="text-gray-300 font-normal">(Optional)</span>
+                                Bill / Token Number *
                             </label>
                             <input
                                 type="text"
@@ -185,6 +208,8 @@ export default function EditOrder() {
                         <div>
                             <input
                                 type="number"
+                                min="0.01"
+                                step="0.01"
                                 value={formData.total_amount}
                                 onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
                                 className="w-full p-3 bg-gray-50 border-gray-100 rounded-xl focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-bold text-gray-900 placeholder-gray-400"

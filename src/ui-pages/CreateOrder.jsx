@@ -1,32 +1,37 @@
 ﻿'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@/src/lib/router';
 import api from '../lib/api';
 import CustomDatePicker from '../components/CustomDatePicker';
 import { ChevronLeft, Camera, User, Calendar, Hash, IndianRupee, FileText, CheckCircle, X } from 'lucide-react';
-import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 
 const MAX_IMAGES_PER_ORDER = 8;
-const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 8 * 1024 * 1024;
+const COMPRESSION_MIN_SIZE_BYTES = 400 * 1024;
+const IMAGE_COMPRESSION_OPTIONS = {
+    maxSizeMB: 0.9,
+    maxWidthOrHeight: 1600,
+    useWebWorker: true,
+    fileType: 'image/jpeg',
+    initialQuality: 0.85,
+};
+
+function formatLocalDate(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 export default function CreateOrder() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-
-    // Get today's date (default for entry_date)
-    const getTodayDate = () => {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    };
+    const todayDate = useMemo(() => formatLocalDate(), []);
 
     const [formData, setFormData] = useState({
         token: '',
         bill_number: '',
         customer_name: '',
-        entry_date: getTodayDate(),  // When the entry is made (defaults to today)
+        entry_date: todayDate,  // When the entry is made (defaults to today)
         delivery_date: '',  // When order should be delivered
         remarks: '',
         total_amount: '',
@@ -36,11 +41,11 @@ export default function CreateOrder() {
     const fileInputRef = useRef(null);
     const latestPreviewUrlsRef = useRef([]);
 
-    const releasePreviewUrls = (urls) => {
+    const releasePreviewUrls = useCallback((urls) => {
         for (const url of urls) {
             URL.revokeObjectURL(url);
         }
-    };
+    }, []);
 
     useEffect(() => {
         latestPreviewUrlsRef.current = previewUrls;
@@ -50,7 +55,7 @@ export default function CreateOrder() {
         return () => {
             releasePreviewUrls(latestPreviewUrlsRef.current);
         };
-    }, []);
+    }, [releasePreviewUrls]);
 
     const handleImageChange = async (e) => {
         const files = Array.from(e.target.files);
@@ -62,24 +67,24 @@ export default function CreateOrder() {
             return;
         }
 
-        // Compression Options
-        const options = {
-            maxSizeMB: 0.9,
-            maxWidthOrHeight: 1600,
-            useWebWorker: true,
-            fileType: 'image/jpeg' // Force JPEG for better compression
-        };
-
         const validFiles = [];
         const validPreviews = [];
         const availableSlots = MAX_IMAGES_PER_ORDER - images.length;
         const filesToProcess = files.slice(0, availableSlots);
+        let imageCompression = null;
+
+        try {
+            const compressionModule = await import('browser-image-compression');
+            imageCompression = compressionModule.default;
+        } catch {
+            toast.error('Image compression unavailable. Uploading original files.');
+        }
 
         // Process files sequentially to maintain order and prevent browser lag
         for (const file of filesToProcess) {
-            // 10MB Limit Check (pre-compression)
+            // 8MB limit check (pre-compression)
             if (file.size > MAX_IMAGE_SIZE_BYTES) {
-                toast.error(`File ${file.name} is too large (>10MB). Skipping.`);
+                toast.error(`File ${file.name} is too large (>8MB). Skipping.`);
                 continue;
             }
 
@@ -89,11 +94,22 @@ export default function CreateOrder() {
             }
 
             try {
-                // Compress Image
-                const compressedFile = await imageCompression(file, options);
+                const shouldCompress = Boolean(imageCompression) && file.size >= COMPRESSION_MIN_SIZE_BYTES;
+                if (shouldCompress) {
+                    const compressedResult = await imageCompression(file, IMAGE_COMPRESSION_OPTIONS);
+                    const compressedFile = compressedResult instanceof File
+                        ? compressedResult
+                        : new File([compressedResult], file.name || `image-${Date.now()}.jpg`, {
+                            type: compressedResult.type || 'image/jpeg',
+                        });
 
-                validFiles.push(compressedFile);
-                validPreviews.push(URL.createObjectURL(compressedFile));
+                    validFiles.push(compressedFile);
+                    validPreviews.push(URL.createObjectURL(compressedFile));
+                    continue;
+                }
+
+                validFiles.push(file);
+                validPreviews.push(URL.createObjectURL(file));
 
             } catch {
                 toast.error(`Failed to compress ${file.name}. Uploading original.`);
@@ -132,21 +148,31 @@ export default function CreateOrder() {
     };
 
     const handleSubmit = async () => {
-        if (!formData.token) return toast.error('Token/Bill Number is required');
+        const orderNumber = String(formData.token || '').trim();
+        if (!orderNumber) return toast.error('Bill / Token number is required.');
+
+        const totalAmountValue = Number(formData.total_amount);
+        if (!Number.isFinite(totalAmountValue) || totalAmountValue <= 0) {
+            return toast.error('Amount is required and must be greater than 0.');
+        }
+
         setLoading(true);
 
         const data = new FormData();
-        Object.keys(formData).forEach(key => data.append(key, formData[key]));
+        data.set('token', orderNumber);
+        data.set('bill_number', orderNumber);
+        data.set('customer_name', formData.customer_name || '');
+        data.set('entry_date', formData.entry_date || '');
+        data.set('delivery_date', formData.delivery_date || '');
+        data.set('remarks', formData.remarks || '');
+        data.set('total_amount', String(totalAmountValue));
 
-        images.forEach((image) => {
-            if (image instanceof File) {
-                data.append('images[]', image);
+        images.forEach((image, index) => {
+            if (image instanceof Blob) {
+                const name = image instanceof File && image.name ? image.name : `image-${index + 1}.jpg`;
+                data.append('images[]', image, name);
             }
         });
-
-        if (formData.total_amount) {
-            data.set('total_amount', Number(formData.total_amount));
-        }
 
         try {
             await api.post('/orders', data, {
@@ -156,6 +182,7 @@ export default function CreateOrder() {
             // Release preview URLs before navigating away
             releasePreviewUrls(previewUrls);
             toast.success('Order created successfully!');
+            await new Promise((resolve) => setTimeout(resolve, 500));
             navigate('/dashboard');
         } catch (err) {
             const msg = err.response?.data?.message || 'Failed to create order.';
@@ -192,7 +219,7 @@ export default function CreateOrder() {
                     <div className="flex gap-2 sm:gap-3 min-h-[60px] sm:min-h-[70px]">
                         <div className="flex-1 glass-card rounded-xl p-2 sm:p-3 flex flex-col justify-center">
                             <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1 flex items-center gap-1">
-                                <Hash size={10} className="sm:w-3 sm:h-3" /> Token / Bill
+                                <Hash size={10} className="sm:w-3 sm:h-3" /> Bill / Token *
                             </label>
                             <input
                                 type="text"
@@ -204,7 +231,7 @@ export default function CreateOrder() {
                         </div>
                         <div className="flex-1 glass-card rounded-xl p-2 sm:p-3 flex flex-col justify-center">
                             <label className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5 sm:mb-1 flex items-center gap-1">
-                                <IndianRupee size={10} className="sm:w-3 sm:h-3" /> Amount
+                                <IndianRupee size={10} className="sm:w-3 sm:h-3" /> Amount *
                             </label>
                             <div className="flex items-center gap-1">
                                 <span className="text-gray-400 font-bold text-base sm:text-lg">₹</span>
@@ -298,13 +325,12 @@ export default function CreateOrder() {
                             {/* Previews - responsive size */}
                             {previewUrls.map((url, idx) => (
                                 <div key={idx} className="flex-none relative rounded-lg sm:rounded-xl overflow-hidden border-2 border-white shadow-lg group w-12 h-12 sm:w-16 sm:h-16">
-                                    <Image
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
                                         src={url}
                                         alt="Preview"
-                                        fill
-                                        unoptimized
-                                        sizes="64px"
-                                        className="object-cover"
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
                                     />
                                     <button
                                         onClick={(e) => {

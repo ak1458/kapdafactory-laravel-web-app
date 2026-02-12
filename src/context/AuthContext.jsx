@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../lib/api';
+import toast from 'react-hot-toast';
 
 const AuthContext = createContext(null);
 
@@ -57,6 +58,9 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('user');
             setToken(null);
             setUser(null);
+            toast.success('Logged out successfully');
+            // Force redirect to login
+            window.location.href = '/login';
         }
     };
 

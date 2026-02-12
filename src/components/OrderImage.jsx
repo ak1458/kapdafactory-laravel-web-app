@@ -1,8 +1,30 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { getStorageCandidates } from '../lib/api';
+
+function DefaultFallback({ className }) {
+    return (
+        <div className={`bg-slate-50 flex items-center justify-center text-slate-300 ${className}`}>
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+                <path d="M16.5 9.4 7.5 4.21" />
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+            </svg>
+        </div>
+    );
+}
 
 export default function OrderImage({
     image,
@@ -10,48 +32,24 @@ export default function OrderImage({
     className = '',
     onClick,
     loading = 'lazy',
+    decoding = 'async',
+    fetchPriority = 'auto',
     fallback = null,
 }) {
     const sources = useMemo(() => getStorageCandidates(image), [image]);
-    const [index, setIndex] = useState(0);
-    const [failed, setFailed] = useState(false);
+    const [sourceIndex, setSourceIndex] = useState(0);
+    const [exhausted, setExhausted] = useState(false);
 
     useEffect(() => {
-        setIndex(0);
-        setFailed(false);
+        setSourceIndex(0);
+        setExhausted(false);
     }, [sources]);
 
-    if (!sources.length || failed) {
-        return fallback;
+    const src = sources[sourceIndex];
+    if (!src || exhausted) {
+        return fallback ?? <DefaultFallback className={className} />;
     }
 
-    const src = sources[index];
-
-    // Use next/image for Vercel Blob or local paths for optimization
-    // Only if we haven't failed and it's a valid string
-    if (src && (src.startsWith('http') || src.startsWith('/'))) {
-        return (
-            <div className={`relative ${className} overflow-hidden`}>
-                <Image
-                    src={src}
-                    alt={alt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    onClick={onClick}
-                    onError={() => {
-                        if (index + 1 < sources.length) {
-                            setIndex((prev) => prev + 1);
-                        } else {
-                            setFailed(true);
-                        }
-                    }}
-                />
-            </div>
-        );
-    }
-
-    // Fallback to standard img if not compatible with next/image or something else
     return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -59,14 +57,16 @@ export default function OrderImage({
             alt={alt}
             className={className}
             loading={loading}
-            decoding="async"
+            decoding={decoding}
+            fetchPriority={fetchPriority}
+            draggable={false}
             onClick={onClick}
             onError={() => {
-                if (index + 1 < sources.length) {
-                    setIndex((prev) => prev + 1);
+                if (sourceIndex + 1 < sources.length) {
+                    setSourceIndex((current) => current + 1);
                     return;
                 }
-                setFailed(true);
+                setExhausted(true);
             }}
         />
     );

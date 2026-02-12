@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-02-12T05:58:27.126Z",
+  "health": [
+    {
+      "status": 200,
+      "elapsed_ms": 1857,
+      "data": {
+        "status": "ok",
+        "version": "1.2.0-perf-fix",
+        "timestamp": "2026-02-12T05:58:12.817Z",
+        "db_latency_ms": 1156.8787889999949,
+        "environment": "production"
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 1276,
+      "data": {
+        "status": "ok",
+        "version": "1.2.0-perf-fix",
+        "timestamp": "2026-02-12T05:58:14.070Z",
+        "db_latency_ms": 964.2965780000086,
+        "environment": "production"
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 1290,
+      "data": {
+        "status": "ok",
+        "version": "1.2.0-perf-fix",
+        "timestamp": "2026-02-12T05:58:15.358Z",
+        "db_latency_ms": 964.6430419999961,
+        "environment": "production"
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 1238,
+      "data": {
+        "status": "ok",
+        "version": "1.2.0-perf-fix",
+        "timestamp": "2026-02-12T05:58:16.631Z",
+        "db_latency_ms": 964.5986089999933,
+        "environment": "production"
+      }
+    },
+    {
+      "status": 200,
+      "elapsed_ms": 1239,
+      "data": {
+        "status": "ok",
+        "version": "1.2.0-perf-fix",
+        "timestamp": "2026-02-12T05:58:17.872Z",
+        "db_latency_ms": 964.0863090000057,
+        "environment": "production"
+      }
+    }
+  ],
+  "login": {
+    "status": 200,
+    "elapsed_ms": 1353
+  },
+  "orders": {
+    "status": 200,
+    "elapsed_ms": 4069,
+    "total": 1,
+    "count": 1,
+    "first_order_id": 2
+  },
+  "detail": {
+    "status": 200,
+    "elapsed_ms": 3358,
+    "id": 2,
+    "images_count": 0
+  }
+}

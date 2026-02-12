@@ -4,6 +4,8 @@ import axios from 'axios';
 
 const api = axios.create({
     baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+    timeout: Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || 20000),
+    timeoutErrorMessage: 'Request timed out. Please try again.',
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -20,11 +22,35 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                // Optional: Redirect to login if not already there
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 function normalizePath(value) {
-    return String(value || '')
+    const raw = String(value || '')
         .trim()
         .replace(/^['"]+|['"]+$/g, '')
-        .replace(/\\/g, '/')
+        .replace(/\\/g, '/');
+
+    // Do not normalize away protocol slashes for absolute URLs.
+    if (/^(https?:\/\/|blob:|data:)/i.test(raw)) {
+        return raw;
+    }
+
+    return raw
         .replace(/^\.\/+/, '')
         .replace(/\/{2,}/g, '/')
         .replace(/^\/+/, '');
@@ -41,7 +67,7 @@ function addPathVariants(target, inputPath) {
     const normalized = normalizePath(inputPath);
     if (!normalized) return;
 
-    if (/^https?:\/\//i.test(normalized)) {
+    if (/^(https?:\/\/|blob:|data:)/i.test(normalized)) {
         addCandidate(target, normalized);
         return;
     }

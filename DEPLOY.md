@@ -1,19 +1,15 @@
-# Defaults to existing content... (I will use append if possible, but write_to_file overwrites. I need to read first, which I did.)
-
-(I will rewrite the file with the new section appended)
-
 # Deploying KapdaFactory to Vercel
 
 ## Prerequisites
 
 1. **Vercel Account**: You already have this.
-2. **GitHub Repo**: `ak1458/kapdafactory-laravel-web-app` (connected).
+2. **GitHub Repo**: your current Next.js repository (connected to Vercel).
 
 ## Step 1: Create Vercel Project
 
 1. Go to your [Vercel Dashboard](https://vercel.com/dashboard).
 2. Click **"Add New..."** -> **"Project"**.
-3. Import the repository `kapdafactory-laravel-web-app`.
+3. Import your KapdaFactory Next.js repository.
 4. **Framework Preset**: Select **Next.js**.
 5. **Root Directory**: Leave as `./` (default).
 
@@ -110,3 +106,12 @@ If you modify `prisma/schema.prisma` (e.g., add a new field):
         # (Assuming you have .env.production.local)
         npx dotenv -e .env.production.local -- npx prisma db push
         ```
+
+## Security Important Note
+
+> [!WARNING]
+> **Action Required**: If you received a GitGuardian alert, it means a secret key (like `JWT_SECRET`) was accidentally committed to GitHub.
+>
+> 1. **Rotate Secrets**: Go to your Vercel Project Settings -> Environment Variables. Generate a NEW `JWT_SECRET` and save it.
+> 2. **Invalidate Old Secrets**: Ensure the old secret is no longer used.
+> 3. **Check `.env`**: Never commit `.env` files. We have verified your `.gitignore` is correct, but please double-check before pushing.

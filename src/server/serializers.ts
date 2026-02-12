@@ -19,7 +19,7 @@ export function serializeImage(image: any) {
         size: image.size,
         created_at: toIso(image.createdAt),
         updated_at: toIso(image.updatedAt),
-        url: `/api/storage/${image.filename}`,
+        url: image.filename.startsWith('http') ? image.filename : `/api/storage/${image.filename.startsWith('/') ? image.filename.slice(1) : image.filename}`,
     };
 }
 
@@ -47,11 +47,11 @@ export function serializeLog(log: any) {
         updated_at: toIso(log.updatedAt),
         user: log.user
             ? {
-                  id: log.user.id,
-                  name: log.user.name,
-                  email: log.user.email,
-                  role: log.user.role,
-              }
+                id: log.user.id,
+                name: log.user.name,
+                email: log.user.email,
+                role: log.user.role,
+            }
             : null,
     };
 }

@@ -1,9 +1,19 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../lib/api';
-import { Calendar, TrendingUp, Package, IndianRupee, ChevronDown, ChevronUp, Banknote, Globe, Download } from 'lucide-react';
+import {
+    Calendar,
+    TrendingUp,
+    Package,
+    IndianRupee,
+    ChevronDown,
+    ChevronUp,
+    Banknote,
+    Globe,
+    Download,
+} from 'lucide-react';
 import CustomDatePicker from '../components/CustomDatePicker';
 import ExportModal from '../components/ExportModal';
 
@@ -23,19 +33,23 @@ export default function DailyCollections() {
             return res.data;
         },
         retry: 1,
-        staleTime: 30000
+        staleTime: 30000,
     });
 
     // Handle new API format with collections and totals
-    const collectionsArray = Array.isArray(collections?.collections) ? collections.collections : (Array.isArray(collections) ? collections : []);
+    const collectionsArray = Array.isArray(collections?.collections)
+        ? collections.collections
+        : Array.isArray(collections)
+            ? collections
+            : [];
     const paymentTotals = collections?.totals || { cash: 0, upi: 0, online: 0 };
+    const onlineTotal = Number(paymentTotals.online || 0) + Number(paymentTotals.upi || 0);
 
     const totalCollections = collectionsArray.reduce((sum, day) => sum + (day.total_collected || 0), 0);
     const totalOrders = collectionsArray.reduce((sum, day) => sum + (day.orders_count || 0), 0);
 
     return (
         <div className="min-h-screen bg-[#F5F1E8] pb-20">
-            {/* Header */}
             <header className="glass-header-green text-white p-4 sticky top-0 z-10">
                 <div className="flex justify-between items-center">
                     <div>
@@ -56,7 +70,6 @@ export default function DailyCollections() {
                 </div>
             </header>
 
-            {/* Filters */}
             <div className="p-4 space-y-3">
                 <div className="glass rounded-2xl p-4">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Date Range</h3>
@@ -80,14 +93,13 @@ export default function DailyCollections() {
                     </div>
                 </div>
 
-                {/* Summary Cards */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg">
                         <div className="flex items-center gap-2 mb-1">
                             <IndianRupee size={16} />
                             <p className="text-xs font-bold opacity-90">Total Collected</p>
                         </div>
-                        <p className="text-2xl font-bold">₹{totalCollections}</p>
+                        <p className="text-2xl font-bold">Rs {totalCollections}</p>
                     </div>
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg">
                         <div className="flex items-center gap-2 mb-1">
@@ -98,26 +110,24 @@ export default function DailyCollections() {
                     </div>
                 </div>
 
-                {/* Payment Method Breakdown - Cash and Online only */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="glass-card rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-1">
                             <Banknote size={16} className="text-green-600" />
                             <p className="text-xs font-bold text-gray-500 uppercase">Cash</p>
                         </div>
-                        <p className="text-xl font-bold text-green-600">₹{paymentTotals.cash || 0}</p>
+                        <p className="text-xl font-bold text-green-600">Rs {paymentTotals.cash || 0}</p>
                     </div>
                     <div className="glass-card rounded-xl p-4">
                         <div className="flex items-center gap-2 mb-1">
                             <Globe size={16} className="text-blue-600" />
-                            <p className="text-xs font-bold text-gray-500 uppercase">Online</p>
+                            <p className="text-xs font-bold text-gray-500 uppercase">Online/UPI</p>
                         </div>
-                        <p className="text-xl font-bold text-blue-600">₹{paymentTotals.online || 0}</p>
+                        <p className="text-xl font-bold text-blue-600">Rs {onlineTotal}</p>
                     </div>
                 </div>
             </div>
 
-            {/* Collections List */}
             <div className="px-4 space-y-3">
                 {isLoading ? (
                     <div className="text-center py-8 text-gray-500">Loading...</div>
@@ -134,7 +144,6 @@ export default function DailyCollections() {
                 ) : (
                     collectionsArray.map((day) => (
                         <div key={day.date} className="glass-card rounded-xl overflow-hidden">
-                            {/* Date Header */}
                             <button
                                 onClick={() => setExpandedDate(expandedDate === day.date ? null : day.date)}
                                 className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
@@ -149,7 +158,7 @@ export default function DailyCollections() {
                                                 weekday: 'short',
                                                 day: 'numeric',
                                                 month: 'short',
-                                                year: 'numeric'
+                                                year: 'numeric',
                                             })}
                                         </p>
                                         <p className="text-xs text-gray-500">{day.orders_count} orders</p>
@@ -157,7 +166,7 @@ export default function DailyCollections() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="text-right">
-                                        <p className="text-lg font-bold text-green-600">₹{day.total_collected}</p>
+                                        <p className="text-lg font-bold text-green-600">Rs {day.total_collected}</p>
                                     </div>
                                     {expandedDate === day.date ? (
                                         <ChevronUp size={20} className="text-gray-400" />
@@ -167,7 +176,6 @@ export default function DailyCollections() {
                                 </div>
                             </button>
 
-                            {/* Expanded Orders */}
                             {expandedDate === day.date && (
                                 <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-2">
                                     {day.orders.map((order) => (
@@ -180,9 +188,9 @@ export default function DailyCollections() {
                                                 <p className="text-xs text-gray-600">{order.customer_name}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-sm font-bold text-green-600">₹{order.paid_amount}</p>
+                                                <p className="text-sm font-bold text-green-600">Rs {order.paid_amount}</p>
                                                 {order.balance > 0 && (
-                                                    <p className="text-xs text-red-500">₹{order.balance} pending</p>
+                                                    <p className="text-xs text-red-500">Rs {order.balance} pending</p>
                                                 )}
                                             </div>
                                         </div>
@@ -194,7 +202,6 @@ export default function DailyCollections() {
                 )}
             </div>
 
-            {/* Export Modal */}
             <ExportModal
                 isOpen={showExportModal}
                 onClose={() => setShowExportModal(false)}
@@ -203,4 +210,3 @@ export default function DailyCollections() {
         </div>
     );
 }
-

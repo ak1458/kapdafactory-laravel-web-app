@@ -6,12 +6,19 @@ declare global {
 
 function normalizeDatabaseUrl() {
     const configured = (process.env.DATABASE_URL || '').trim();
+    const prismaUrl = (process.env.POSTGRES_PRISMA_URL || '').trim();
     const fallback = (process.env.POSTGRES_URL || '').trim();
 
-    let resolved = configured || fallback;
+    let resolved = configured || prismaUrl || fallback;
 
-    if (resolved.includes('${POSTGRES_URL}') && fallback) {
-        resolved = resolved.replaceAll('${POSTGRES_URL}', fallback);
+    if (resolved.includes('${POSTGRES_PRISMA_URL}') && prismaUrl) {
+        resolved = resolved.replaceAll('${POSTGRES_PRISMA_URL}', prismaUrl);
+    }
+    if (resolved.includes('${POSTGRES_URL}')) {
+        const replacement = prismaUrl || fallback;
+        if (replacement) {
+            resolved = resolved.replaceAll('${POSTGRES_URL}', replacement);
+        }
     }
 
     if (!resolved) {
@@ -22,10 +29,16 @@ function normalizeDatabaseUrl() {
         const parsed = new URL(resolved);
         const hostname = parsed.hostname.toLowerCase();
         const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+        const isSupabasePooler = hostname.endsWith('.pooler.supabase.com');
 
         // Local Postgres commonly runs without TLS; forcing disable avoids handshake failures.
         if (isLocalHost && process.env.LOCAL_DB_SSL !== 'true') {
             parsed.searchParams.set('sslmode', 'disable');
+        }
+
+        // Supabase pooled endpoints require PgBouncer-safe mode for Prisma.
+        if (isSupabasePooler && !parsed.searchParams.has('pgbouncer')) {
+            parsed.searchParams.set('pgbouncer', 'true');
         }
 
         if (!parsed.searchParams.has('connection_limit')) {

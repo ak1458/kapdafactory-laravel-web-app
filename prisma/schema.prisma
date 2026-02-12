@@ -64,6 +64,9 @@ model Order {
   payments Payment[]
 
   @@index([deliveryDate, status])
+  @@index([customerName])
+  @@index([token])
+  @@index([billNumber])
   @@map("orders")
 }
 
@@ -78,6 +81,7 @@ model OrderImage {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([orderId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("order_images")
 }
 
@@ -93,6 +97,8 @@ model OrderLog {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user  User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([orderId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([orderId, action])
   @@map("order_logs")
 }
 
@@ -108,6 +114,7 @@ model Payment {
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([orderId, paymentDate(sort: Desc), id(sort: Desc)])
   @@map("payments")
 }
 

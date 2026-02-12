@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev-server.mjs",
+    "dev:turbo": "next dev --turbopack",
+    "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build && npx prisma validate && npx prisma generate",
+    "test:prod:smoke": "node scripts/prod-smoke.mjs",
+    "audit:db:deletions": "node scripts/audit-db-deletions.mjs",
     "prisma:generate": "prisma generate",
     "prisma:dbpush": "prisma db push",
     "prisma:seed": "node prisma/seed.cjs"
@@ -37,6 +43,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "^1.58.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

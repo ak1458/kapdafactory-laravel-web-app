@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useNavigate, Link } from '@/src/lib/router';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -29,6 +30,7 @@ export default function Login() {
         const res = await login(email, password);
 
         if (res.success) {
+            toast.success('Login successful!');
             navigate('/dashboard');
         } else {
             setError(res.message);
@@ -93,7 +95,7 @@ export default function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="block w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#25D366]/20 focus:border-[#25D366] transition-all font-medium"
-                                    placeholder="••••••••"
+                                    placeholder="********"
                                 />
                             </div>
                         </div>
