@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
-import { useNavigate } from '@/src/lib/router';
-import { useQuery } from '@tanstack/react-query';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import api from '../lib/api';
 import FilterChips from '../components/FilterChips';
 import OrderCard from '../components/OrderCard';
@@ -12,72 +11,76 @@ import ExportModal from '../components/ExportModal';
 import { AlertCircle, Inbox, Calendar, LogOut, Search, X, Download } from 'lucide-react';
 
 const SEARCH_DEBOUNCE_MS = 350;
-const PAGE_SIZE = 15;
 
-export default function OrderList() {
-    const navigate = useNavigate();
-    const [searchInput, setSearchInput] = useState('');
-    const [search, setSearch] = useState('');
-    const [status, setStatus] = useState('all');
-    const [dateFilter, setDateFilter] = useState('');
-    const [sortOrder, setSortOrder] = useState('desc');
+export default function OrderList({ initialData }) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const [isPending, startTransition] = useTransition();
+
+    // Local state for immediate UI feedback on search input
+    const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
     const [showExportModal, setShowExportModal] = useState(false);
 
+    // Sync local search input with URL param if it changes externally
+    useEffect(() => {
+        setSearchInput(searchParams.get('search') || '');
+    }, [searchParams]);
+
+    // Debounce search updates to URL
     useEffect(() => {
         const timer = setTimeout(() => {
-            setSearch(searchInput.trim());
+            const currentSearch = searchParams.get('search') || '';
+            const newSearch = searchInput.trim();
+
+            if (currentSearch !== newSearch) {
+                updateUrl({ search: newSearch });
+            }
         }, SEARCH_DEBOUNCE_MS);
 
         return () => clearTimeout(timer);
     }, [searchInput]);
 
+    const updateUrl = (updates) => {
+        const params = new URLSearchParams(searchParams.toString());
+
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null || value === undefined || value === '') {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        });
+
+        // Reset to page 1 on filter change, unless we are just changing page
+        if (!updates.page) {
+            params.set('page', '1');
+        }
+
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    };
+
     const logout = async () => {
         try {
             await api.post('/logout');
         } catch {
-            // Ignore logout API failures and clear local state anyway.
+            // Ignore logout API failures
         } finally {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            navigate('/login');
+            router.push('/login');
         }
     };
 
-    const { data, isLoading, isFetching, error, refetch } = useQuery({
-        queryKey: ['orders', search, status, dateFilter, sortOrder],
-        queryFn: async () => {
-            const params = {
-                search,
-                status,
-                sort_by: 'created_at',
-                sort_order: sortOrder,
-                per_page: PAGE_SIZE,
-            };
+    const orders = initialData?.data || [];
+    const responseData = initialData || {};
 
-            if (dateFilter && typeof dateFilter === 'string' && dateFilter.trim() !== '') {
-                params.date_from = dateFilter;
-                params.date_to = dateFilter;
-                params.date = dateFilter;
-            }
-
-            const res = await api.get('/orders', { params });
-            return res.data;
-        },
-        placeholderData: (previousData) => previousData,
-        staleTime: 5000, // Keep data fresh for 5 seconds
-        refetchOnWindowFocus: false, // Prevent aggressive refetching on focus
-        retry: (failureCount, error) => {
-            // Don't retry on 401/403/422
-            if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 422) {
-                return false;
-            }
-            return failureCount < 2;
-        }
-    });
-
-    const orders = data?.data || [];
-    const responseData = data || {};
-    const showInitialLoading = isLoading && !data;
+    // Status, Date, Sort come from URL now
+    const status = searchParams.get('status') || 'all';
+    const dateFilter = searchParams.get('date') || searchParams.get('date_from') || '';
+    const sortOrder = searchParams.get('sort_order') || 'desc';
 
     const formatDateSafe = (dateString) => {
         try {
@@ -193,7 +196,7 @@ export default function OrderList() {
                     <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                         <FilterChips
                             status={status}
-                            onChange={setStatus}
+                            onChange={(val) => updateUrl({ status: val })}
                             options={[
                                 { value: 'all', label: 'All' },
                                 { value: 'pending', label: 'Pending' },
@@ -213,14 +216,14 @@ export default function OrderList() {
                                     </label>
                                     <CustomDatePicker
                                         selected={dateFilter}
-                                        onChange={(date) => setDateFilter(date)}
+                                        onChange={(date) => updateUrl({ date: date, date_from: date, date_to: date })}
                                         placeholder="Select Date"
                                         className="text-sm font-bold text-gray-800"
                                     />
                                 </div>
                                 {dateFilter && (
                                     <button
-                                        onClick={() => setDateFilter('')}
+                                        onClick={() => updateUrl({ date: null, date_from: null, date_to: null })}
                                         className="flex-none p-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors"
                                         title="Clear Date"
                                     >
@@ -231,7 +234,7 @@ export default function OrderList() {
                         </div>
 
                         <button
-                            onClick={() => setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
+                            onClick={() => updateUrl({ sort_order: sortOrder === 'desc' ? 'asc' : 'desc' })}
                             className="flex-none bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl px-4 py-3 border border-gray-200 shadow-sm hover:shadow-md transition-all group"
                         >
                             <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Sort Order</div>
@@ -245,25 +248,16 @@ export default function OrderList() {
 
                 {renderDailySummary()}
 
-                {showInitialLoading ? (
-                    <div className="flex flex-col items-center justify-center py-10 space-y-4 animate-pulse">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                        <div className="h-3 w-24 bg-gray-200 rounded"></div>
-                    </div>
-                ) : error ? (
-                    <div className="flex flex-col items-center justify-center py-10 text-center">
-                        <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
-                            <AlertCircle size={24} className="text-red-500" />
+                {isPending && (
+                    <div className="flex justify-center py-2 relative z-50">
+                        <div className="bg-white/80 backdrop-blur px-4 py-1 rounded-full shadow-sm text-xs font-bold text-teal-700 flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-teal-600"></div>
+                            Updating...
                         </div>
-                        <p className="text-gray-500 text-xs">Failed to load orders</p>
-                        <button
-                            onClick={() => refetch()}
-                            className="mt-3 px-4 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold"
-                        >
-                            Retry
-                        </button>
                     </div>
-                ) : orders.length === 0 ? (
+                )}
+
+                {orders.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
                         <Inbox size={32} className="text-gray-400 mb-2" />
                         <p className="text-gray-400 text-xs font-medium">No orders found</p>
@@ -273,11 +267,6 @@ export default function OrderList() {
                         {orders.map((order) => (
                             <OrderCard key={order.id} order={order} />
                         ))}
-                        {isFetching && (
-                            <div className="py-4 flex justify-center">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600"></div>
-                            </div>
-                        )}
                     </div>
                 )}
             </main>

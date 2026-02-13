@@ -57,6 +57,17 @@ export default function CreateOrder() {
         };
     }, [releasePreviewUrls]);
 
+    useEffect(() => {
+        // Fix: Proactively clear any auto-filled value if it matches the pattern or on mount
+        // This addresses the user issue where "BILL-" is auto-generated
+        setFormData(prev => {
+            if (!prev.token || prev.token.startsWith('BILL-')) {
+                return { ...prev, token: '', bill_number: '' };
+            }
+            return prev;
+        });
+    }, []);
+
     const handleImageChange = async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) return;
@@ -226,6 +237,7 @@ export default function CreateOrder() {
                                 placeholder="A-101"
                                 value={formData.token}
                                 onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+                                autoComplete="off"
                                 className="w-full text-base sm:text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none bg-transparent"
                             />
                         </div>
@@ -239,6 +251,7 @@ export default function CreateOrder() {
                                     type="number"
                                     value={formData.total_amount || ''}
                                     onChange={(e) => setFormData({ ...formData, total_amount: e.target.value })}
+                                    autoComplete="off"
                                     className="w-full text-base sm:text-lg font-bold text-gray-900 placeholder-gray-300 focus:outline-none bg-transparent"
                                     placeholder="0"
                                 />

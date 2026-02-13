@@ -1,13 +1,21 @@
-'use client';
-
+import { redirect } from 'next/navigation';
 import ProtectedLayout from '@/src/components/ProtectedLayout';
 import OrderList from '@/src/ui-pages/OrderList';
+import { getOrders } from '@/src/server/orders';
+import { getCurrentUser } from '@/src/server/auth';
 
-export default function DashboardPage() {
+export default async function DashboardPage(props: { searchParams: Promise<any> }) {
+    const user = await getCurrentUser();
+    if (!user) {
+        redirect('/login');
+    }
+
+    const searchParams = await props.searchParams;
+    const data = await getOrders(searchParams);
+
     return (
         <ProtectedLayout>
-            <OrderList />
+            <OrderList initialData={data} />
         </ProtectedLayout>
     );
 }
-

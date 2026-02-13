@@ -99,3 +99,53 @@ export async function getAuthUser(request: NextRequest): Promise<AuthUser | null
         role: user.role,
     };
 }
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const token = cookieStore.get('kf_token')?.value;
+
+    if (!token) {
+        return null;
+    }
+
+    const payload = await verifyAccessToken(token);
+    if (!payload?.sub) {
+        return null;
+    }
+
+    const userId = Number(payload.sub);
+    if (!Number.isSafeInteger(userId) || userId < 1) {
+        return null;
+    }
+
+    if (TRUST_TOKEN_AUTH) {
+        return {
+            id: userId,
+            email: payload.email,
+            name: payload.name || payload.email || `user-${userId}`,
+            role: payload.role,
+        };
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+        },
+    });
+
+    if (!user) {
+        return null;
+    }
+
+    return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+    };
+}

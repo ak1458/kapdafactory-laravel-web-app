@@ -25,6 +25,7 @@ export default function OrderCard({ order }) {
     return (
         <Link
             to={`/orders/${order.id}`}
+            prefetch={false}
             className="group block glass-card rounded-2xl p-4 mb-3 transition-all duration-300 active:scale-[0.98] hover:shadow-[0_8px_32px_rgba(0,0,0,0.1)]"
         >
             <div className="flex justify-between items-start mb-3">

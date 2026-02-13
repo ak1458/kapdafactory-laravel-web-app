@@ -67,6 +67,8 @@ model Order {
   @@index([customerName])
   @@index([token])
   @@index([billNumber])
+  @@index([createdAt])
+  @@index([status])
   @@map("orders")
 }
 

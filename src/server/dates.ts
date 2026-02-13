@@ -1,4 +1,4 @@
-export function parseDateValue(value: string | null) {
+export function parseDateValue(value: string | null | undefined) {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed) return null;

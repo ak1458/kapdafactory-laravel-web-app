@@ -75,7 +75,9 @@ export async function getSerializedOrderDetail(orderId: number, options: OrderDe
     const imageLimit = mode === 'lite' ? ORDER_DETAIL_LITE_IMAGES_LIMIT : ORDER_DETAIL_IMAGES_LIMIT;
 
     if (mode === 'lite') {
-        const [images, paymentTotals] = await Promise.all([
+        // In lite mode, we only need the user-facing basics fast.
+        // We fetch 1 image just for a thumbnail if needed, and skip payments/logs.
+        const [images] = await Promise.all([
             prisma.orderImage.findMany({
                 where: { orderId },
                 select: {
@@ -88,11 +90,7 @@ export async function getSerializedOrderDetail(orderId: number, options: OrderDe
                     updatedAt: true,
                 },
                 orderBy: { createdAt: 'desc' },
-                take: imageLimit,
-            }),
-            prisma.payment.aggregate({
-                where: { orderId },
-                _sum: { amount: true },
+                take: 1, // Reduced from imageLimit to 1 for faster list view/initial load
             }),
         ]);
 
@@ -102,27 +100,28 @@ export async function getSerializedOrderDetail(orderId: number, options: OrderDe
             payments: [],
             logs: [],
         }) as any;
-        const paidAmount = Number(paymentTotals._sum.amount || 0);
-        const totalAmount = Number(order.totalAmount);
 
-        serialized.paid_amount = paidAmount;
-        serialized.balance = Math.max(0, totalAmount - paidAmount);
+        // Defer payment calculation for the full fetch to avoid aggregate overhead on every list item
+        const totalAmount = Number(order.totalAmount);
+        serialized.paid_amount = 0; // Placeholder
+        serialized.balance = totalAmount; // Placeholder, client should rely on full fetch for accurate balance
+
         serialized.meta = {
             mode: 'lite',
             history_deferred: true,
             images_returned: images.length,
-            images_truncated: false,
+            images_truncated: true,
             payments_returned: 0,
-            payments_truncated: false,
+            payments_truncated: true,
             logs_returned: 0,
-            logs_truncated: false,
+            logs_truncated: true,
         };
 
         if (
             shouldUseLegacyImageFallback(order.id) &&
             (!Array.isArray(serialized.images) || serialized.images.length === 0)
         ) {
-            serialized.images = await getLegacyImagesForOrder(order.id, imageLimit);
+            serialized.images = await getLegacyImagesForOrder(order.id, 1);
         }
 
         return serialized;

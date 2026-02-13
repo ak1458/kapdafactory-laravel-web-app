@@ -1,8 +1,8 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useTransition } from 'react';
 import dynamic from 'next/dynamic';
-import { useParams, useNavigate } from '@/src/lib/router';
+import { useRouter } from 'next/navigation';
 import api from '../lib/api';
 import OrderImage from '../components/OrderImage';
 import { ChevronLeft, Edit, Trash2, User, Calendar, X, Clock, Scissors, Truck, ArrowRightLeft, Banknote, Globe } from 'lucide-react';
@@ -60,12 +60,17 @@ const PREVIEW_IMAGE_LIMIT = 6;
 const PREVIEW_PAYMENT_LIMIT = 12;
 const PREVIEW_LOG_LIMIT = 16;
 
-export default function OrderDetail() {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    const [order, setOrder] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+export default function OrderDetail({ initialOrder }) {
+    const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+
+    const [order, setOrder] = useState(initialOrder);
+
+    // Sync state with props when server re-renders (e.g. after router.refresh())
+    useEffect(() => {
+        setOrder(initialOrder);
+    }, [initialOrder]);
+
     const [deleting, setDeleting] = useState(false);
     const [statusUpdating, setStatusUpdating] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
@@ -73,108 +78,31 @@ export default function OrderDetail() {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('cash');
     const [actualDeliveryDate, setActualDeliveryDate] = useState('');
-    const [historyLoading, setHistoryLoading] = useState(false);
-    const [historyError, setHistoryError] = useState('');
+
     const [showAllPayments, setShowAllPayments] = useState(false);
     const [showAllLogs, setShowAllLogs] = useState(false);
     const [showAllImages, setShowAllImages] = useState(false);
-    const fetchSeqRef = useRef(0);
-    const isMountedRef = useRef(true);
 
     const todayDate = useMemo(() => {
         const today = new Date();
         return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     }, []);
 
-    useEffect(() => {
-        return () => {
-            isMountedRef.current = false;
-        };
-    }, []);
-
-    const isTimeoutError = useCallback((err) => {
-        return (
-            err?.code === 'ECONNABORTED' ||
-            err?.message === 'Request timed out. Please try again.' ||
-            String(err?.message || '').toLowerCase().includes('timeout')
-        );
-    }, []);
-
-    const fetchOrderFull = useCallback(async (activeFetchSeq = fetchSeqRef.current) => {
-        if (!id || id === 'undefined' || id === 'null') return;
-
-        setHistoryLoading(true);
-        setHistoryError('');
-        try {
-            const res = await api.get(`/orders/${id}`);
-            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
-            setOrder(res.data);
-        } catch (err) {
-            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
-            console.error('Order full fetch error:', err);
-            setHistoryError(isTimeoutError(err) ? 'History loading timed out.' : 'Failed to load full history.');
-        } finally {
-            if (!isMountedRef.current || activeFetchSeq !== fetchSeqRef.current) return;
-            setHistoryLoading(false);
-        }
-    }, [id, isTimeoutError]);
-
-    const fetchOrderLite = useCallback(async () => {
-        const fetchSeq = fetchSeqRef.current + 1;
-        fetchSeqRef.current = fetchSeq;
-
-        if (!id || id === 'undefined' || id === 'null') {
-            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
-            setError('Invalid Order ID');
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const res = await api.get(`/orders/${id}?lite=1`);
-            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
-            setOrder(res.data);
-            setError(null);
-            setLoading(false);
-            setShowAllPayments(false);
-            setShowAllLogs(false);
-            setShowAllImages(false);
-
-            if (res.data?.meta?.history_deferred) {
-                setTimeout(() => {
-                    if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
-                    fetchOrderFull(fetchSeq);
-                }, 120);
-            }
-        } catch (err) {
-            if (!isMountedRef.current || fetchSeq !== fetchSeqRef.current) return;
-            console.error('Order lite fetch error:', err);
-            setError(isTimeoutError(err) ? 'Order loading timed out. Please retry.' : 'Failed to load order');
-            setLoading(false);
-        }
-    }, [fetchOrderFull, id, isTimeoutError]);
-
-    useEffect(() => {
-        if (!id || id === 'undefined') {
-            // Optional: Auto-redirect if ID is clearly bad
-            // navigate('/dashboard');
-        }
-        setLoading(true);
-        setHistoryLoading(false);
-        setHistoryError('');
-        fetchOrderLite();
-    }, [fetchOrderLite, id]);
+    const refreshOrder = () => {
+        startTransition(() => {
+            router.refresh();
+        });
+    };
 
     const updateStatus = async (newStatus) => {
         if (statusUpdating) return;
         try {
             setStatusUpdating(true);
-            // Use today's date as default if not selected
             const deliveryDate = newStatus === 'delivered'
                 ? (actualDeliveryDate || new Date().toISOString().split('T')[0])
                 : null;
 
-            await api.put(`/orders/${id}/status`, {
+            await api.put(`/orders/${order.id}/status`, {
                 status: newStatus,
                 payment_amount: newStatus === 'delivered' ? paymentAmount : 0,
                 payment_method: paymentMethod,
@@ -184,7 +112,7 @@ export default function OrderDetail() {
             setPaymentAmount('');
             setPaymentMethod('cash');
             setActualDeliveryDate('');
-            fetchOrderFull(fetchSeqRef.current);
+            refreshOrder();
         } catch {
             alert('Failed to update status');
         } finally {
@@ -195,80 +123,29 @@ export default function OrderDetail() {
     const deleteImage = async (imageId) => {
         if (!confirm('Delete this image?')) return;
         try {
-            await api.delete(`/orders/${id}/images/${imageId}`);
-            fetchOrderFull(fetchSeqRef.current);
+            await api.delete(`/orders/${order.id}/images/${imageId}`);
+            refreshOrder(); // Re-fetch to update image list
         } catch {
             alert('Failed to delete image');
         }
     };
 
-    const payments = useMemo(() => {
-        if (!Array.isArray(order?.payments)) {
-            return [];
-        }
-        return order.payments;
-    }, [order?.payments]);
-
-    const visiblePayments = useMemo(() => {
-        if (showAllPayments) return payments;
-        return payments.slice(0, PREVIEW_PAYMENT_LIMIT);
-    }, [payments, showAllPayments]);
+    const payments = useMemo(() => Array.isArray(order?.payments) ? order.payments : [], [order?.payments]);
+    const visiblePayments = useMemo(() => showAllPayments ? payments : payments.slice(0, PREVIEW_PAYMENT_LIMIT), [payments, showAllPayments]);
 
     const statusLogs = useMemo(() => {
-        if (!Array.isArray(order?.logs)) {
-            return [];
-        }
+        if (!Array.isArray(order?.logs)) return [];
         return order.logs
             .filter((log) => log.action.startsWith('status_changed:'))
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }, [order?.logs]);
 
-    const visibleStatusLogs = useMemo(() => {
-        if (showAllLogs) return statusLogs;
-        return statusLogs.slice(0, PREVIEW_LOG_LIMIT);
-    }, [showAllLogs, statusLogs]);
+    const visibleStatusLogs = useMemo(() => showAllLogs ? statusLogs : statusLogs.slice(0, PREVIEW_LOG_LIMIT), [showAllLogs, statusLogs]);
 
-    const images = useMemo(() => {
-        if (!Array.isArray(order?.images)) {
-            return [];
-        }
-        return order.images;
-    }, [order?.images]);
+    const images = useMemo(() => Array.isArray(order?.images) ? order.images : [], [order?.images]);
+    const visibleImages = useMemo(() => showAllImages ? images : images.slice(0, PREVIEW_IMAGE_LIMIT), [images, showAllImages]);
 
-    const visibleImages = useMemo(() => {
-        if (showAllImages) return images;
-        return images.slice(0, PREVIEW_IMAGE_LIMIT);
-    }, [images, showAllImages]);
-
-    const formatTruncationHint = useCallback((returned, count, label) => {
-        if (Number.isFinite(count) && count > returned) {
-            return `Showing latest ${returned} of ${count} ${label}`;
-        }
-        return `Showing latest ${returned} ${label}`;
-    }, []);
-
-    if (loading) return <div className="flex justify-center items-center h-screen text-[#075E54] font-bold">Loading...</div>;
-    if (error) {
-        return (
-            <div className="min-h-screen bg-[#ECE5DD] px-4 py-12 flex flex-col items-center justify-center gap-3">
-                <p className="text-center text-red-500 font-bold">{error}</p>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={fetchOrderLite}
-                        className="px-4 py-2 rounded-xl bg-[#075E54] text-white text-sm font-semibold"
-                    >
-                        Retry
-                    </button>
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="px-4 py-2 rounded-xl bg-white text-gray-700 text-sm font-semibold"
-                    >
-                        Back
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    if (!order) return <div className="flex justify-center items-center h-screen text-[#075E54] font-bold">Order not found</div>;
 
     return (
         <div className="min-h-screen bg-[#ECE5DD] font-sans">
@@ -277,7 +154,7 @@ export default function OrderDetail() {
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={() => navigate(-1)}
+                            onClick={() => router.back()}
                             className="p-2 -ml-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
                         >
                             <ChevronLeft size={20} />
@@ -288,8 +165,13 @@ export default function OrderDetail() {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        {isPending && (
+                            <div className="flex items-center justify-center bg-white/20 rounded-lg w-[34px] h-[34px]">
+                                <div className="w-[18px] h-[18px] border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                            </div>
+                        )}
                         <button
-                            onClick={() => navigate(`/orders/${id}/edit`)}
+                            onClick={() => router.push(`/orders/${order.id}/edit`)}
                             className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
                         >
                             <Edit size={18} />
@@ -300,8 +182,8 @@ export default function OrderDetail() {
                                 if (!confirm('Are you sure you want to delete this order? This cannot be undone.')) return;
                                 setDeleting(true);
                                 try {
-                                    await api.delete(`/orders/${id}`);
-                                    navigate('/dashboard');
+                                    await api.delete(`/orders/${order.id}`);
+                                    router.push('/dashboard');
                                 } catch (err) {
                                     console.error('Delete error:', err);
                                     alert(err.response?.data?.message || 'Failed to delete order. Please try again.');
@@ -325,20 +207,20 @@ export default function OrderDetail() {
                 <div className="flex justify-between items-start">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">
-                            Order #{order?.token}
+                            Order #{order.token}
                         </h1>
                         <p className="text-sm text-gray-500 font-medium mt-1">
-                            {order?.created_at ? new Date(order.created_at).toLocaleDateString() : 'No Date'}
+                            {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'No Date'}
                         </p>
                     </div>
                     <span className={clsx(
                         "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border",
-                        order?.status === 'pending' && "bg-amber-50 text-amber-600 border-amber-100",
-                        order?.status === 'ready' && "bg-blue-50 text-blue-600 border-blue-100",
-                        order?.status === 'delivered' && "bg-green-50 text-green-600 border-green-100",
-                        order?.status === 'transferred' && "bg-purple-50 text-purple-600 border-purple-100"
+                        order.status === 'pending' && "bg-amber-50 text-amber-600 border-amber-100",
+                        order.status === 'ready' && "bg-blue-50 text-blue-600 border-blue-100",
+                        order.status === 'delivered' && "bg-green-50 text-green-600 border-green-100",
+                        order.status === 'transferred' && "bg-purple-50 text-purple-600 border-purple-100"
                     )}>
-                        {order?.status}
+                        {order.status}
                     </span>
                 </div>
 
@@ -350,7 +232,7 @@ export default function OrderDetail() {
                         </div>
                         <div>
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Customer</p>
-                            <p className="font-semibold text-gray-900">{order?.customer_name || 'Walk-in Customer'}</p>
+                            <p className="font-semibold text-gray-900">{order.customer_name || 'Walk-in Customer'}</p>
                         </div>
                     </div>
 
@@ -361,7 +243,7 @@ export default function OrderDetail() {
                         <div>
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Delivery Date</p>
                             <p className="font-semibold text-gray-900">
-                                {order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not Set'}
+                                {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Not Set'}
                             </p>
                         </div>
                     </div>
@@ -372,37 +254,16 @@ export default function OrderDetail() {
                     <div className="flex justify-between items-center">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Remaining Balance</span>
                         <div className="text-right">
-                            <span className="text-xl font-bold text-red-500 block">₹{order?.balance || 0}</span>
+                            <span className="text-xl font-bold text-red-500 block">₹{order.balance || 0}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Payment History Table */}
-                {(payments.length > 0 || historyLoading || historyError) && (
+                {(payments.length > 0) && (
                     <div className="glass-card rounded-xl overflow-hidden">
                         <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment History</h3>
-                            {historyLoading && (
-                                <p className="text-[10px] text-gray-500 mt-1 normal-case tracking-normal">
-                                    Loading full payment history...
-                                </p>
-                            )}
-                            {!historyLoading && order?.meta?.payments_truncated && (
-                                <p className="text-[10px] text-amber-600 mt-1 normal-case tracking-normal">
-                                    {formatTruncationHint(order.meta.payments_returned, order.meta.payments_count, 'payments')}
-                                </p>
-                            )}
-                            {!historyLoading && historyError && (
-                                <div className="mt-1 flex items-center gap-2">
-                                    <p className="text-[10px] text-red-500 normal-case tracking-normal">{historyError}</p>
-                                    <button
-                                        onClick={() => fetchOrderFull(fetchSeqRef.current)}
-                                        className="text-[10px] font-bold text-[#075E54]"
-                                    >
-                                        Retry
-                                    </button>
-                                </div>
-                            )}
                         </div>
                         {visiblePayments.length > 0 ? (
                             <>
@@ -443,7 +304,7 @@ export default function OrderDetail() {
                             </>
                         ) : (
                             <p className="px-4 py-3 text-xs font-medium text-gray-500">
-                                {historyLoading ? 'Preparing payment history...' : 'No payment records yet.'}
+                                No payment records yet.
                             </p>
                         )}
                     </div>
@@ -453,11 +314,6 @@ export default function OrderDetail() {
                 {images.length > 0 && (
                     <div>
                         <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Measurements / Photos</h3>
-                        {order?.meta?.images_truncated && (
-                            <p className="text-[10px] text-amber-600 mb-2">
-                                {formatTruncationHint(order.meta.images_returned, order.meta.images_count, 'photos')}
-                            </p>
-                        )}
                         <div className="grid grid-cols-3 gap-3">
                             {visibleImages.map((img) => (
                                 <div key={img.id} className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group">
@@ -503,7 +359,7 @@ export default function OrderDetail() {
                         <Edit size={12} /> Remarks
                     </p>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                        {order?.remarks || 'No remarks provided.'}
+                        {order.remarks || 'No remarks provided.'}
                     </p>
                 </div>
 
@@ -516,12 +372,12 @@ export default function OrderDetail() {
                             disabled={statusUpdating}
                             className={clsx(
                                 "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
-                                order?.status === 'pending'
+                                order.status === 'pending'
                                     ? "bg-gradient-to-br from-amber-400 to-orange-500 border-transparent text-white shadow-lg shadow-orange-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-amber-200 hover:bg-amber-50/50 hover:shadow-md"
                             )}
                         >
-                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'pending' ? "bg-white/20" : "bg-amber-100 text-amber-600")}>
+                            <div className={clsx("p-2 rounded-full transition-colors", order.status === 'pending' ? "bg-white/20" : "bg-amber-100 text-amber-600")}>
                                 <Clock size={20} />
                             </div>
                             <span className="font-bold text-sm">Pending</span>
@@ -532,12 +388,12 @@ export default function OrderDetail() {
                             disabled={statusUpdating}
                             className={clsx(
                                 "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
-                                order?.status === 'ready'
+                                order.status === 'ready'
                                     ? "bg-gradient-to-br from-blue-400 to-blue-600 border-transparent text-white shadow-lg shadow-blue-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-blue-200 hover:bg-blue-50/50 hover:shadow-md"
                             )}
                         >
-                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'ready' ? "bg-white/20" : "bg-blue-100 text-blue-600")}>
+                            <div className={clsx("p-2 rounded-full transition-colors", order.status === 'ready' ? "bg-white/20" : "bg-blue-100 text-blue-600")}>
                                 <Scissors size={20} />
                             </div>
                             <span className="font-bold text-sm">Ready</span>
@@ -548,12 +404,12 @@ export default function OrderDetail() {
                             disabled={statusUpdating}
                             className={clsx(
                                 "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
-                                order?.status === 'delivered'
+                                order.status === 'delivered'
                                     ? "bg-gradient-to-br from-[#25D366] to-[#128C7E] border-transparent text-white shadow-lg shadow-green-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-green-200 hover:bg-green-50/50 hover:shadow-md"
                             )}
                         >
-                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'delivered' ? "bg-white/20" : "bg-green-100 text-green-600")}>
+                            <div className={clsx("p-2 rounded-full transition-colors", order.status === 'delivered' ? "bg-white/20" : "bg-green-100 text-green-600")}>
                                 <Truck size={20} />
                             </div>
                             <span className="font-bold text-sm">Delivered</span>
@@ -564,12 +420,12 @@ export default function OrderDetail() {
                             disabled={statusUpdating}
                             className={clsx(
                                 "relative overflow-hidden p-4 rounded-xl border transition-all duration-300 flex flex-col items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed",
-                                order?.status === 'transferred'
+                                order.status === 'transferred'
                                     ? "bg-gradient-to-br from-purple-400 to-purple-600 border-transparent text-white shadow-lg shadow-purple-500/30 scale-[1.02]"
                                     : "bg-white border-gray-100 text-gray-500 hover:border-purple-200 hover:bg-purple-50/50 hover:shadow-md"
                             )}
                         >
-                            <div className={clsx("p-2 rounded-full transition-colors", order?.status === 'transferred' ? "bg-white/20" : "bg-purple-100 text-purple-600")}>
+                            <div className={clsx("p-2 rounded-full transition-colors", order.status === 'transferred' ? "bg-white/20" : "bg-purple-100 text-purple-600")}>
                                 <ArrowRightLeft size={20} />
                             </div>
                             <span className="font-bold text-sm">Transferred</span>
@@ -578,33 +434,12 @@ export default function OrderDetail() {
                 </div>
 
                 {/* Status Timeline */}
-                {(visibleStatusLogs.length > 0 || historyLoading || historyError) && (
+                {(statusLogs.length > 0) && (
                     <div className="glass-card rounded-2xl p-5">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <Clock size={14} />
                             Status Timeline
                         </h3>
-                        {historyLoading && (
-                            <p className="text-[10px] text-gray-500 mb-3">
-                                Loading full timeline...
-                            </p>
-                        )}
-                        {!historyLoading && order?.meta?.logs_truncated && (
-                            <p className="text-[10px] text-amber-600 mb-3">
-                                {formatTruncationHint(order.meta.logs_returned, order.meta.logs_count, 'logs')}
-                            </p>
-                        )}
-                        {!historyLoading && historyError && (
-                            <div className="mb-3 flex items-center gap-2">
-                                <p className="text-[10px] text-red-500">{historyError}</p>
-                                <button
-                                    onClick={() => fetchOrderFull(fetchSeqRef.current)}
-                                    className="text-[10px] font-bold text-[#075E54]"
-                                >
-                                    Retry
-                                </button>
-                            </div>
-                        )}
                         {visibleStatusLogs.length > 0 ? (
                             <div className="space-y-3">
                                 {visibleStatusLogs.map((log, index) => {
@@ -647,7 +482,7 @@ export default function OrderDetail() {
                             </div>
                         ) : (
                             <p className="text-xs text-gray-500">
-                                {historyLoading ? 'Preparing timeline...' : 'No status updates yet.'}
+                                No status updates yet.
                             </p>
                         )}
                         {!showAllLogs && statusLogs.length > visibleStatusLogs.length && (
@@ -689,7 +524,7 @@ export default function OrderDetail() {
                         <div className="p-4 space-y-3 overflow-y-auto">
                             <div className="bg-red-50 px-3 py-2 rounded-xl text-center border border-red-100">
                                 <p className="text-[10px] font-bold text-red-400 uppercase tracking-wider">Due Amount</p>
-                                <p className="text-xl font-bold text-red-600">₹{order?.balance || 0}</p>
+                                <p className="text-xl font-bold text-red-600">₹{order.balance || 0}</p>
                             </div>
 
                             <div className="space-y-1.5">
@@ -750,10 +585,10 @@ export default function OrderDetail() {
                                         <span
                                             className={clsx(
                                                 'font-bold',
-                                                (order?.balance - (parseFloat(paymentAmount) || 0)) > 0 ? 'text-red-500' : 'text-green-600'
+                                                (order.balance - (parseFloat(paymentAmount) || 0)) > 0 ? 'text-red-500' : 'text-green-600'
                                             )}
                                         >
-                                            ₹{Math.max(0, (order?.balance || 0) - (parseFloat(paymentAmount) || 0))}
+                                            ₹{Math.max(0, (order.balance || 0) - (parseFloat(paymentAmount) || 0))}
                                         </span>
                                     </span>
                                 </div>
@@ -798,21 +633,9 @@ export default function OrderDetail() {
                         className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
                         onClick={(e) => e.stopPropagation()}
                         loading="eager"
-                        fallback={
-                            <div
-                                className="w-56 h-56 rounded-xl bg-white/10 border border-white/20 text-white/80 flex items-center justify-center text-sm font-semibold"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                Image unavailable
-                            </div>
-                        }
                     />
                 </div>
             )}
         </div>
     );
 }
-
-
-
-

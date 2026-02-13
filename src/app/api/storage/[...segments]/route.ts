@@ -34,8 +34,12 @@ export async function GET(_request: NextRequest, context: any) {
         return NextResponse.json({ message: 'Invalid file path.' }, { status: 400 });
     }
 
-    const absolutePath = path.join(STORAGE_ROOT, relativePath);
+    // Ensure consistent path separators for Windows
+    const normalizedRelativePath = relativePath.split('/').join(path.sep);
+    const absolutePath = path.join(STORAGE_ROOT, normalizedRelativePath);
+    console.log('[API Storage] Request:', { segments: params.segments, relativePath, absolutePath, storageRoot: STORAGE_ROOT });
     if (!absolutePath.startsWith(STORAGE_ROOT)) {
+        console.error('[API Storage] Path Traversal detected');
         return NextResponse.json({ message: 'Invalid file path.' }, { status: 400 });
     }
 

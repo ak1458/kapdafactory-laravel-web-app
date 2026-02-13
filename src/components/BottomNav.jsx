@@ -15,6 +15,7 @@ export default function BottomNav() {
         <div className="fixed bottom-0 left-0 right-0 glass-nav px-6 py-3 flex justify-around items-center z-50 safe-area-bottom">
             <Link
                 href="/orders/new"
+                prefetch={false}
                 className={`flex flex-col items-center gap-1 transition-all active:scale-95 touch-manipulation ${isActive('/orders/new')
                     ? 'text-teal-600'
                     : 'text-gray-400 hover:text-gray-600'
@@ -26,6 +27,7 @@ export default function BottomNav() {
 
             <Link
                 href="/dashboard"
+                prefetch={false}
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                 className={`flex flex-col items-center gap-1 transition-all active:scale-95 touch-manipulation ${isActive('/dashboard')
                     ? 'text-teal-600'
@@ -38,6 +40,7 @@ export default function BottomNav() {
 
             <Link
                 href="/collections"
+                prefetch={false}
                 className={`flex flex-col items-center gap-1 transition-all active:scale-95 touch-manipulation ${isActive('/collections')
                     ? 'text-teal-600'
                     : 'text-gray-400 hover:text-gray-600'
@@ -61,5 +64,3 @@ export default function BottomNav() {
         </div>
     );
 }
-
-
