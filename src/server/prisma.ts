@@ -64,6 +64,7 @@ export const prisma = global.__prisma__ ?? new PrismaClient({
     errorFormat: 'minimal',
 });
 
-if (process.env.NODE_ENV !== 'production') {
-    global.__prisma__ = prisma;
-}
+// Cache in ALL environments — on Vercel, warm invocations within the same
+// serverless container will reuse this client instead of opening a fresh
+// TCP/TLS connection to Supabase on every request.
+global.__prisma__ = prisma;

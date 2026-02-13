@@ -111,49 +111,49 @@ export async function getOrders(params: GetOrdersParams) {
             ? [{ deliveryDate: sortOrder }, { createdAt: 'desc' }]
             : [{ createdAt: sortOrder }];
 
-    const fetchedOrders = await prisma.order.findMany({
-        where,
-        select: {
-            id: true,
-            token: true,
-            billNumber: true,
-            customerName: true,
-            totalAmount: true,
-            deliveryDate: true,
-            entryDate: true,
-            actualDeliveryDate: true,
-            status: true,
-            remarks: true,
-            createdBy: true,
-            createdAt: true,
-            updatedAt: true,
-            images: {
-                select: {
-                    id: true,
-                    orderId: true,
-                    filename: true,
-                    mime: true,
-                    size: true,
-                    createdAt: true,
-                    updatedAt: true,
+    // Run findMany + count in PARALLEL to avoid sequential waterfall
+    const [fetchedOrders, total] = await Promise.all([
+        prisma.order.findMany({
+            where,
+            select: {
+                id: true,
+                token: true,
+                billNumber: true,
+                customerName: true,
+                totalAmount: true,
+                deliveryDate: true,
+                entryDate: true,
+                actualDeliveryDate: true,
+                status: true,
+                remarks: true,
+                createdBy: true,
+                createdAt: true,
+                updatedAt: true,
+                images: {
+                    select: {
+                        id: true,
+                        orderId: true,
+                        filename: true,
+                        mime: true,
+                        size: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 1,
                 },
-                orderBy: {
-                    createdAt: 'desc',
-                },
-                take: 1,
             },
-        },
-        orderBy,
-        skip: (page - 1) * perPage,
-        take: perPage + 1,
-    });
+            orderBy,
+            skip: (page - 1) * perPage,
+            take: perPage + 1,
+        }),
+        prisma.order.count({ where }),
+    ]);
 
     const hasMore = fetchedOrders.length > perPage;
     const orders = hasMore ? fetchedOrders.slice(0, perPage) : fetchedOrders;
-    // We don't always need total count for infinite scroll, but dashboard currently uses pagination.
-    // For performance, we count only if needed or keep it simple.
-    // Let's do the count to keep compatibility with existing frontend logic if possible.
-    const total = await prisma.order.count({ where });
 
     const orderIds = orders.map((order) => order.id);
     const missingImageOrderIds = orders
@@ -219,6 +219,12 @@ export async function getOrders(params: GetOrdersParams) {
     };
 
     if (params.date) {
+        // Run aggregates + orders in parallel
+        const statsOrdersPromise = prisma.order.findMany({
+            where,
+            select: { id: true, totalAmount: true },
+        });
+
         const [totalsByStatus, statsOrders] = await Promise.all([
             prisma.$transaction([
                 prisma.order.aggregate({
@@ -233,10 +239,7 @@ export async function getOrders(params: GetOrdersParams) {
                     _sum: { totalAmount: true },
                 }),
             ]),
-            prisma.order.findMany({
-                where,
-                select: { id: true, totalAmount: true },
-            }),
+            statsOrdersPromise,
         ]);
 
         const [totalCollectionResult, totalPendingResult] = totalsByStatus;

@@ -9,10 +9,17 @@ async function main() {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    // Remove old admin@example.com user if it exists (legacy from DEPLOY.md SQL)
+    await prisma.user.deleteMany({
+        where: { email: { in: ['admin@example.com', 'admin@kapdafactory.com'] } },
+    });
+
     await prisma.user.upsert({
-        where: { email: 'admin@kapdafactory.com' },
+        where: { email },
         update: {
             password: hashed,
+            name: 'Admin',
+            role: 'admin',
         },
         create: {
             name: 'Admin',

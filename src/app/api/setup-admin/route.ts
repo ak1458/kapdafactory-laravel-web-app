@@ -17,7 +17,7 @@ function getProvidedKey(request: NextRequest) {
 
 async function handleSetup(request: NextRequest) {
     const configuredKey = String(process.env.KF_SETUP_ADMIN_KEY || '').trim();
-    const allowInProd = process.env.KF_ALLOW_SETUP_ADMIN_IN_PROD === 'true';
+    const allowInProd = String(process.env.KF_ALLOW_SETUP_ADMIN_IN_PROD || '').trim() === 'true';
 
     if (process.env.NODE_ENV === 'production' && !allowInProd) {
         return NextResponse.json({ message: 'Not found.' }, { status: 404 });

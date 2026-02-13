@@ -34,12 +34,15 @@ export async function GET(_request: NextRequest, context: any) {
         return NextResponse.json({ message: 'Invalid file path.' }, { status: 400 });
     }
 
+    // If the path looks like a full URL (Vercel Blob), redirect to it
+    if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+        return NextResponse.redirect(relativePath, { status: 302 });
+    }
+
     // Ensure consistent path separators for Windows
     const normalizedRelativePath = relativePath.split('/').join(path.sep);
     const absolutePath = path.join(STORAGE_ROOT, normalizedRelativePath);
-    console.log('[API Storage] Request:', { segments: params.segments, relativePath, absolutePath, storageRoot: STORAGE_ROOT });
     if (!absolutePath.startsWith(STORAGE_ROOT)) {
-        console.error('[API Storage] Path Traversal detected');
         return NextResponse.json({ message: 'Invalid file path.' }, { status: 400 });
     }
 
@@ -49,8 +52,8 @@ export async function GET(_request: NextRequest, context: any) {
             status: 200,
             headers: {
                 'Content-Type': getMimeType(absolutePath),
-                // Keep cache short so newly uploaded images are visible immediately.
-                'Cache-Control': 'public, max-age=60',
+                // Images are content-addressed (UUID filenames) — safe to cache long
+                'Cache-Control': 'public, max-age=31536000, immutable',
             },
         });
     } catch {

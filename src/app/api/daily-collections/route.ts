@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         orderBy: {
             actualDeliveryDate: 'desc',
         },
-        take: 3000, // Safety limit to prevent crashing
+        take: 500, // Safety limit — keeps response under Vercel's 10s timeout
     });
 
     const paymentMethodTotals = {

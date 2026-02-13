@@ -172,48 +172,51 @@ export async function GET(request: NextRequest) {
             ? [{ deliveryDate: sortOrder }, { createdAt: 'desc' }]
             : [{ createdAt: sortOrder }];
 
-    const fetchedOrders = await prisma.order.findMany({
-        where,
-        select: {
-            id: true,
-            token: true,
-            billNumber: true,
-            customerName: true,
-            totalAmount: true,
-            deliveryDate: true,
-            entryDate: true,
-            actualDeliveryDate: true,
-            status: true,
-            remarks: true,
-            createdBy: true,
-            createdAt: true,
-            updatedAt: true,
-            images: {
-                select: {
-                    id: true,
-                    orderId: true,
-                    filename: true,
-                    mime: true,
-                    size: true,
-                    createdAt: true,
-                    updatedAt: true,
+    // Run findMany + count in PARALLEL to avoid sequential waterfall
+    const [fetchedOrders, totalCount] = await Promise.all([
+        prisma.order.findMany({
+            where,
+            select: {
+                id: true,
+                token: true,
+                billNumber: true,
+                customerName: true,
+                totalAmount: true,
+                deliveryDate: true,
+                entryDate: true,
+                actualDeliveryDate: true,
+                status: true,
+                remarks: true,
+                createdBy: true,
+                createdAt: true,
+                updatedAt: true,
+                images: {
+                    select: {
+                        id: true,
+                        orderId: true,
+                        filename: true,
+                        mime: true,
+                        size: true,
+                        createdAt: true,
+                        updatedAt: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
+                    },
+                    take: 1,
                 },
-                orderBy: {
-                    createdAt: 'desc',
-                },
-                take: 1,
             },
-        },
-        orderBy,
-        skip: (page - 1) * perPage,
-        take: perPage + 1,
-    });
-    perf.mark('orders_query');
+            orderBy,
+            skip: (page - 1) * perPage,
+            take: perPage + 1,
+        }),
+        prisma.order.count({ where }),
+    ]);
+    perf.mark('orders_query_and_count');
 
     const hasMore = fetchedOrders.length > perPage;
     const orders = hasMore ? fetchedOrders.slice(0, perPage) : fetchedOrders;
-    const total = hasMore ? await prisma.order.count({ where }) : (page - 1) * perPage + orders.length;
-    perf.mark('orders_count_optional');
+    const total = totalCount;
 
     const orderIds = orders.map((order) => order.id);
     const missingImageOrderIds = orders
@@ -280,6 +283,12 @@ export async function GET(request: NextRequest) {
     };
 
     if (params.get('date')) {
+        // Run ALL stats queries in parallel: aggregates + orders + payments
+        const statsOrdersPromise = prisma.order.findMany({
+            where,
+            select: { id: true, totalAmount: true },
+        });
+
         const [totalsByStatus, statsOrders] = await Promise.all([
             prisma.$transaction([
                 prisma.order.aggregate({
@@ -294,10 +303,7 @@ export async function GET(request: NextRequest) {
                     _sum: { totalAmount: true },
                 }),
             ]),
-            prisma.order.findMany({
-                where,
-                select: { id: true, totalAmount: true },
-            }),
+            statsOrdersPromise,
         ]);
 
         const [totalCollectionResult, totalPendingResult] = totalsByStatus;
@@ -343,7 +349,11 @@ export async function GET(request: NextRequest) {
         per_page: perPage,
     });
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+        headers: {
+            'Cache-Control': 's-maxage=5, stale-while-revalidate=30',
+        },
+    });
 }
 
 export async function POST(request: NextRequest) {
@@ -438,9 +448,10 @@ export async function POST(request: NextRequest) {
             },
         });
 
-        for (const file of files) {
+        // Upload all images in PARALLEL instead of sequentially
+        const imageUploads = files.map(async (file) => {
             const path = await storeOrderImage(order.id, file);
-            await prisma.orderImage.create({
+            return prisma.orderImage.create({
                 data: {
                     orderId: order.id,
                     filename: path,
@@ -448,7 +459,8 @@ export async function POST(request: NextRequest) {
                     size: file.size,
                 },
             });
-        }
+        });
+        await Promise.all(imageUploads);
 
         const createdOrder = await prisma.order.findUniqueOrThrow({
             where: { id: order.id },
